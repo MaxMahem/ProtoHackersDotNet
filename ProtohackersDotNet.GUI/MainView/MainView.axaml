@@ -1,0 +1,157 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+						 xmlns:md="https://github.com/whistyun/Markdown.Avalonia.Tight"
+						 xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"
+						 xmlns:mv="using:ProtoHackersDotNet.GUI.MainView"
+						 xmlns:gui="using:ProtoHackersDotNet.GUI"
+						 xmlns:ci="using:ProtoHackersDotNet.Servers.Interface.Client"
+             x:Class="ProtoHackersDotNet.GUI.MainView.MainView"
+             x:DataType="mv:MainViewModel"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450">
+  <Design.DataContext>
+    <mv:MainViewModel />
+  </Design.DataContext>
+	<Grid ColumnDefinitions="*, 1, 4*, 0" Margin="10 10 10 10" Name="MainGrid">
+		<DockPanel Name="Server">
+			<DockPanel DockPanel.Dock="Top">
+				<Label DockPanel.Dock="Left" VerticalAlignment="Center" Target="{Binding #TypeDropdown}">Server</Label>
+				<ComboBox Name="TypeDropdown" HorizontalAlignment="Right"
+									ItemsSource="{Binding AvaliableServers}" SelectedItem="{Binding ServerFactory}"
+									IsEnabled="{Binding !ServerRunning}">
+					<ComboBox.ItemTemplate>
+						<DataTemplate>
+							<TextBlock Text="{Binding Name}"/>
+						</DataTemplate>
+					</ComboBox.ItemTemplate>
+				</ComboBox>
+			</DockPanel>
+			<StackPanel DockPanel.Dock="Bottom">
+				<Grid ColumnDefinitions="1*, 2*" RowDefinitions="auto, auto">
+					<Label    Grid.Column="0" Grid.Row="0" Target="{Binding #ServerIP}" VerticalAlignment="Center">IP</Label>
+					<ComboBox Grid.Column="1" Grid.Row="0" Name="ServerIP" HorizontalAlignment="Stretch"
+										ItemsSource="{Binding SystemIPs}" SelectedItem="{Binding ServerIP}"
+										IsEnabled="{Binding !ServerRunning}" />
+					<Label         Grid.Column="0" Grid.Row="1" Target="{Binding #ServerPort}" VerticalAlignment="Center">Port</Label>
+					<NumericUpDown Grid.Column="1" Grid.Row="1" Name="ServerPort" ShowButtonSpinner="False"
+												 Value="{Binding ServerPort}" Minimum="0" Maximum="65535" FormatString="0"
+												 IsEnabled="{Binding !ServerRunning}" />
+				</Grid>
+				<Expander Grid.Column="0" Grid.Row="5" Grid.ColumnSpan="2" HorizontalAlignment="Stretch" MinHeight="0" MinWidth="0" Padding="0"
+									Header="Logging">
+					<Grid ColumnDefinitions="auto,*" RowDefinitions="auto, auto">
+						<Label Grid.Column="0" Grid.Row="0" VerticalAlignment="Center">Recieve</Label>
+						<ToggleSwitch Grid.Column="1" Grid.Row="0" HorizontalAlignment="Right"/>
+						<Label Grid.Column="0" Grid.Row="1" VerticalAlignment="Center">Transmit</Label>
+						<ToggleSwitch Grid.Column="1" Grid.Row="1" HorizontalAlignment="Right"/>
+					</Grid>
+				</Expander>
+				<StackPanel Orientation="Horizontal" FlowDirection="RightToLeft" 
+										Width="{Binding #Server.Bounds.Width}" Spacing="4">
+					<Button Command="{Binding StopServer}"  IsEnabled="{Binding !CanServerStart}">Stop</Button>
+					<Button Command="{Binding Test}" IsEnabled="{Binding !CanServerStart}">Test</Button>
+					<Button Command="{Binding StartServer}" IsEnabled="{Binding CanServerStart}">Start</Button>
+				</StackPanel>
+			</StackPanel>
+			<Border BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" BorderThickness="1" CornerRadius="3">
+				<md:MarkdownScrollViewer Markdown="{Binding ServerFactory.Description}">
+					<md:MarkdownScrollViewer.Styles>
+						<Style Selector="ctxt|CTextBlock.Heading1">
+							<Setter Property="FontSize" Value="18"/>
+							<Setter Property="FontWeight" Value="Bold"/>
+						</Style>
+						<Style Selector="ctxt|CTextBlock.Heading2">
+							<Setter Property="FontSize" Value="16"/>
+							<Setter Property="FontWeight" Value="Bold"/>
+						</Style>
+						<Style Selector="ctxt|CTextBlock.Heading3">
+							<Setter Property="FontSize" Value="14"/>
+							<Setter Property="FontWeight" Value="Bold"/>
+							<Setter Property="Foreground" Value="{DynamicResource TextControlForeground}" />
+						</Style>
+					</md:MarkdownScrollViewer.Styles>
+				</md:MarkdownScrollViewer>
+			</Border>
+		</DockPanel>
+		<GridSplitter Grid.Column="1" ResizeDirection="Columns" MinWidth="2" Margin="5 5"/>
+		<Grid Grid.Column="2" ColumnDefinitions="*" RowDefinitions="Auto, 1, *">
+			<Expander Grid.Column="0" Grid.Row="0" Header="{Binding ClientHeader}" HorizontalAlignment="Stretch"
+								MinHeight="0" Padding="0" Background="{DynamicResource SystemRegionBrush}" 
+								MaxHeight="{Binding #MaxExpander.Bounds.Height}" >
+				<Expander.Styles>
+					<Style Selector="">	
+					</Style>
+				</Expander.Styles>
+				<DockPanel>
+					<Button DockPanel.Dock="Bottom" HorizontalAlignment="Right" Command="{Binding ClearClients}">Clear Clients</Button>
+					<Border BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" BorderThickness="1" CornerRadius="3">
+						<TreeDataGrid Source="{Binding Clients}">
+							<Interaction.Behaviors>
+								<gui:ScrollToEndBehavior />
+							</Interaction.Behaviors>
+							<TreeDataGrid.Resources>
+								<DataTemplate x:Key="EndPointCell" x:DataType="ci:IClient">
+									<TextBlock>
+										<TextBlock.Text>
+											<MultiBinding Converter="{x:Static mv:Converters.ClientNameConverter}">
+												<Binding Path="RemoteEndPoint" />
+												<Binding Path="NameChanges^" />
+											</MultiBinding>
+										</TextBlock.Text>
+									</TextBlock>
+								</DataTemplate>
+								<DataTemplate x:Key="RecievedCell" x:DataType="ci:IClient">
+									<TextBlock Text="{Binding TotalBytesRecievedChanges^}"/>
+								</DataTemplate>
+								<DataTemplate x:Key="TransmittedCell" x:DataType="ci:IClient">
+									<TextBlock Text="{Binding TotalBytesTransmittedChanges^}"/>
+								</DataTemplate>
+								<DataTemplate x:Key="StatusCell" x:DataType="ci:IClient">
+									<TextBlock Text="{Binding StatusChanges^}"/>
+								</DataTemplate>
+							</TreeDataGrid.Resources>
+							<TreeDataGrid.Styles>
+								<Style Selector="TreeDataGrid :is(TreeDataGridCell):nth-last-child(1n+3)">
+									<Setter Property="TextBlock.FontFamily" Value="/Assets/RobotoMono-Italic-VariableFont_wght.ttf"/>
+								</Style>
+							</TreeDataGrid.Styles>
+						</TreeDataGrid>
+					</Border>
+				</DockPanel>
+			</Expander>
+			<GridSplitter Grid.Column="0" Grid.Row="1"></GridSplitter>
+			<DockPanel Grid.Column="0" Grid.Row="2">
+				<DockPanel DockPanel.Dock="Bottom" Name="MessageControls">
+					<Button DockPanel.Dock="Right" Command="{Binding ClearMessages}">Clear Messages</Button>
+					<StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+						<Label VerticalAlignment="Center" Target="{Binding #LogToggle}">Message Logging</Label>
+						<ToggleSwitch Name="LogToggle" IsChecked="{Binding LoggingEnabled}" IsEnabled="{Binding !ServerRunning}" />
+						<TextBlock Text="{Binding LogFileName}" Margin="5 0 0 0" VerticalAlignment="Center" />
+					</StackPanel>
+				</DockPanel>
+				<Border BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" BorderThickness="1" CornerRadius="3">
+					<TreeDataGrid Source="{Binding Messages}">
+						<Interaction.Behaviors>
+							<gui:ScrollToEndBehavior />
+						</Interaction.Behaviors>
+						<TreeDataGrid.Styles>
+							<Style Selector="TreeDataGrid :is(TreeDataGridCell):nth-last-child(1n+3)">
+								<Setter Property="TextBlock.FontFamily" Value="/Assets/RobotoMono-Italic-VariableFont_wght.ttf"/>
+							</Style>
+						</TreeDataGrid.Styles>
+						<TreeDataGrid.Resources>
+							<DataTemplate x:Key="MessageCell" x:DataType="mv:FormatedMessage">
+								<TextBlock Text="{Binding Message}" />
+							</DataTemplate>
+						</TreeDataGrid.Resources>
+					</TreeDataGrid>					
+				</Border>
+			</DockPanel>
+		</Grid>
+		<Grid Grid.Column="0" Grid.Row="3" RowDefinitions="1*, 2*" ColumnDefinitions="0">
+			<Grid Grid.Column="0" Grid.Row="0" Name="MaxExpander" />
+			<Grid Grid.Column="0" Grid.Row="1"/>
+		</Grid>
+	</Grid>
+</UserControl>
