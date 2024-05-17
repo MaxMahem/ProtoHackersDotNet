@@ -18,6 +18,8 @@ public abstract partial class TcpClientBase<TServer, TClient>(TcpClient client, 
 
     public EndPoint? RemoteEndPoint { get; } = client?.Client.RemoteEndPoint;
 
+    public DateTime ConnectedAt { get; } = DateTime.UtcNow;
+
     public string? StatusExtended { get; private set; }
 
     #region Observables

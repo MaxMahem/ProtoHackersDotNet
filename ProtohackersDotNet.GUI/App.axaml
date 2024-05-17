@@ -7,4 +7,7 @@
 		<StyleInclude Source="avares://Avalonia.Controls.TreeDataGrid/Themes/Fluent.axaml"/>
 		<!--<StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"/>-->
   </Application.Styles>
+	<Application.Resources>
+		<FontFamily x:Key="Monospace">avares://ProtoHackersDotNet.GUI/Assets/Fonts#IBM Plex Mono</FontFamily>
+	</Application.Resources>
 </Application>

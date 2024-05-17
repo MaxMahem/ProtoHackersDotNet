@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
 						 xmlns:md="https://github.com/whistyun/Markdown.Avalonia.Tight"
 						 xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"
+						 xmlns:ia="using:Avalonia.Xaml.Interactivity"
 						 xmlns:mv="using:ProtoHackersDotNet.GUI.MainView"
 						 xmlns:gui="using:ProtoHackersDotNet.GUI"
 						 xmlns:ci="using:ProtoHackersDotNet.Servers.Interface.Client"
@@ -76,46 +77,77 @@
 		</DockPanel>
 		<GridSplitter Grid.Column="1" ResizeDirection="Columns" MinWidth="2" Margin="5 5"/>
 		<Grid Grid.Column="2" ColumnDefinitions="*" RowDefinitions="Auto, 1, *">
-			<Expander Grid.Column="0" Grid.Row="0" Header="{Binding ClientHeader}" HorizontalAlignment="Stretch"
-								MinHeight="0" Padding="0" Background="{DynamicResource SystemRegionBrush}" 
-								MaxHeight="{Binding #MaxExpander.Bounds.Height}" >
-				<Expander.Styles>
-					<Style Selector="">	
-					</Style>
-				</Expander.Styles>
+			<Expander Grid.Column="0" Grid.Row="0" Name="ClientExpander" HorizontalAlignment="Stretch"
+								MinHeight="0" Padding="0" Background="Transparent" IsExpanded="True"
+								MaxHeight="{Binding #MaxExpander.Bounds.Height}"
+								Header="{Binding ActiveClientCount^, StringFormat='Clients (Active {0})'}" >
 				<DockPanel>
 					<Button DockPanel.Dock="Bottom" HorizontalAlignment="Right" Command="{Binding ClearClients}">Clear Clients</Button>
 					<Border BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" BorderThickness="1" CornerRadius="3">
-						<TreeDataGrid Source="{Binding Clients}">
+						<TreeDataGrid Source="{Binding Clients}" Name="Clients">
 							<Interaction.Behaviors>
 								<gui:ScrollToEndBehavior />
 							</Interaction.Behaviors>
+							<TreeDataGrid.Styles>
+								<Style Selector="TreeDataGrid TreeDataGridColumnHeader">
+									<Setter Property="TextBlock.FontWeight" Value="Bold"/>
+								</Style>
+								<Style Selector="TreeDataGrid TreeDataGridColumnHeader:nth-child(n+3)">
+									<Setter Property="Layoutable.HorizontalAlignment" Value="Right"/>
+								</Style>
+								<Style Selector="TreeDataGrid TreeDataGridColumnHeader:nth-child(n+3)">
+									<Setter Property="TextBlock.HorizontalAlignment" Value="Right"/>
+								</Style>
+								<Style Selector="TreeDataGrid TreeDataGridTemplateCell:nth-child(n+3)">
+									<Setter Property="Layoutable.HorizontalAlignment" Value="Right"/>
+									<Setter Property="TextBlock.FontFamily" Value="{StaticResource Monospace}" />
+									<Setter Property="TextBlock.TextAlignment" Value="Right" />
+									<Setter Property="TextBlock.FontWeight" Value="Medium"/>
+									<Setter Property="TextBlock.VerticalAlignment" Value="Center"/>
+								</Style>
+								<Style Selector="TreeDataGrid TreeDataGridTemplateCell">
+									<Setter Property="Padding" Value="4 2 4 2"/>
+								</Style>
+								<Style Selector="TextBlock.disconnected">
+									<Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+								</Style>
+								<Style Selector="TextBlock.terminated">
+									<Setter Property="Foreground" Value="{DynamicResource SystemControlErrorTextForegroundBrush}" />
+								</Style>
+							</TreeDataGrid.Styles>
 							<TreeDataGrid.Resources>
-								<DataTemplate x:Key="EndPointCell" x:DataType="ci:IClient">
-									<TextBlock>
+								<DataTemplate x:Key="EndPointCell" x:DataType="mv:ClientVM">
+									<TextBlock Classes.disconnected="{Binding IsDisconnected^}" 
+														 Classes.terminated="{Binding IsTerminated^}">
 										<TextBlock.Text>
 											<MultiBinding Converter="{x:Static mv:Converters.ClientNameConverter}">
-												<Binding Path="RemoteEndPoint" />
-												<Binding Path="NameChanges^" />
+												<Binding Path="Client.RemoteEndPoint" />
+												<Binding Path="Client.NameChanges^" />
 											</MultiBinding>
 										</TextBlock.Text>
 									</TextBlock>
 								</DataTemplate>
-								<DataTemplate x:Key="RecievedCell" x:DataType="ci:IClient">
-									<TextBlock Text="{Binding TotalBytesRecievedChanges^}"/>
+								<DataTemplate x:Key="StatusCell" x:DataType="mv:ClientVM">
+									<TextBlock Text="{Binding Client.StatusChanges^}"
+														 Classes.disconnected="{Binding IsDisconnected^}" 
+														 Classes.terminated="{Binding IsTerminated^}"/>
 								</DataTemplate>
-								<DataTemplate x:Key="TransmittedCell" x:DataType="ci:IClient">
-									<TextBlock Text="{Binding TotalBytesTransmittedChanges^}"/>
+								<DataTemplate x:Key="ConnectionAgeCell" x:DataType="mv:ClientVM">
+									<TextBlock Text="{Binding ConnectionAge^, StringFormat={}{0:m\\:ss}}"
+														 Classes.disconnected="{Binding IsDisconnected^}"
+														 Classes.terminated="{Binding IsTerminated^}"/>
 								</DataTemplate>
-								<DataTemplate x:Key="StatusCell" x:DataType="ci:IClient">
-									<TextBlock Text="{Binding StatusChanges^}"/>
+								<DataTemplate x:Key="RecievedCell" x:DataType="mv:ClientVM">
+									<TextBlock Text="{Binding Client.TotalBytesRecievedChanges^}"
+														 Classes.disconnected="{Binding IsDisconnected^}"
+														 Classes.terminated="{Binding IsTerminated^}"/>
+								</DataTemplate>
+								<DataTemplate x:Key="TransmittedCell" x:DataType="mv:ClientVM">
+									<TextBlock Text="{Binding Client.TotalBytesTransmittedChanges^}"
+														 Classes.disconnected="{Binding IsDisconnected^}"
+														 Classes.terminated="{Binding IsTerminated^}"/>
 								</DataTemplate>
 							</TreeDataGrid.Resources>
-							<TreeDataGrid.Styles>
-								<Style Selector="TreeDataGrid :is(TreeDataGridCell):nth-last-child(1n+3)">
-									<Setter Property="TextBlock.FontFamily" Value="/Assets/RobotoMono-Italic-VariableFont_wght.ttf"/>
-								</Style>
-							</TreeDataGrid.Styles>
 						</TreeDataGrid>
 					</Border>
 				</DockPanel>
@@ -136,11 +168,11 @@
 							<gui:ScrollToEndBehavior />
 						</Interaction.Behaviors>
 						<TreeDataGrid.Styles>
-							<Style Selector="TreeDataGrid :is(TreeDataGridCell):nth-last-child(1n+3)">
-								<Setter Property="TextBlock.FontFamily" Value="/Assets/RobotoMono-Italic-VariableFont_wght.ttf"/>
-							</Style>
 						</TreeDataGrid.Styles>
 						<TreeDataGrid.Resources>
+							<DataTemplate x:Key="TimestampCell" x:DataType="mv:FormatedMessage">
+								<TextBlock Text="{Binding Timestamp}" FontFamily="{StaticResource Monospace}" VerticalAlignment="Center" />
+							</DataTemplate>
 							<DataTemplate x:Key="MessageCell" x:DataType="mv:FormatedMessage">
 								<TextBlock Text="{Binding Message}" />
 							</DataTemplate>

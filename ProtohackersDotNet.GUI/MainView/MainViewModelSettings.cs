@@ -1,6 +1,4 @@
-﻿using ProtoHackersDotNet.GUI.MainView;
-using System.IO;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace ProtoHackersDotNet.GUI.MainView;

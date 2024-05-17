@@ -1,25 +1,21 @@
-﻿using System;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Net.NetworkInformation;
-using System.Reactive.Linq;
 using Avalonia.Threading;
 using Avalonia.Controls.Models.TreeDataGrid;
 using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
+using System.Collections.Specialized;
 
 namespace ProtoHackersDotNet.GUI.MainView;
 
 public partial class MainViewModel : ObservableValidator
 {
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanServerStart))]
-    IServerFactory serverFactory = AvaliableServers.First();
+    public IServerFactory ServerFactory { get; } = AvaliableServers.First();
 
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanServerStart))]
-    IPAddress serverIP  = IPAddress.Any;
+    public IPAddress ServerIP { get; } = IPAddress.Any;
 
     [ObservableProperty, NotifyPropertyChangedFor(nameof(CanServerStart))]
     ushort? serverPort = 0;
@@ -30,10 +26,10 @@ public partial class MainViewModel : ObservableValidator
     [ObservableProperty]
     string logFileName = string.Empty;
 
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(ClientHeader))]
-    int activeClientCount = 0;
+    public IObservable<int> ActiveClientCount { get; }
 
-    public string ClientHeader => $"Active Clients ({ActiveClientCount})";
+    // [ObservableProperty, NotifyPropertyChangedFor(nameof(ClientHeader))]
+    // int activeClientCount = 0;
 
     FileStream? logFileStream = null;
     StreamWriter? logStream = null;
@@ -44,8 +40,8 @@ public partial class MainViewModel : ObservableValidator
     readonly ObservableCollection<FormatedMessage> messages = [];
     public FlatTreeDataGridSource<FormatedMessage>? Messages { get; }
 
-    readonly ObservableCollection<IClient> clients = [];
-    public FlatTreeDataGridSource<IClient>? Clients { get; }
+    readonly ObservableCollection<ClientVM> clients = [];
+    public FlatTreeDataGridSource<ClientVM>? Clients { get; }
 
     #region Constructors
 
@@ -54,24 +50,35 @@ public partial class MainViewModel : ObservableValidator
         _ = this.TestSubmissionClient.DefaultRequestHeaders.UserAgent.TryParseAdd(UserAgent)
                 || ThrowHelper.ThrowInvalidOperationException<bool>("User agent parse failed.");
 
-        var fourStarLength = new GridLength(4, GridUnitType.Star);
+        // build an observer that triggers a client count when a client is added/removed or when the connection status changes
+        ActiveClientCount = Observable.FromEventPattern<NotifyCollectionChangedEventHandler, NotifyCollectionChangedEventArgs>(
+            handler => this.clients.CollectionChanged += handler,
+            handler => this.clients.CollectionChanged -= handler)
+            .SelectMany(_ => this.clients.Select(vm => vm.Client.ConnectionStatusChanges).Merge())
+            .Select(_ => this.clients.Where(vm => vm.Client.ConnectionStatus is ConnectionStatus.Connected).Count())
+            .StartWith(this.clients.Count);
+
+        var star1 = new GridLength(1, GridUnitType.Star);
+        var star2 = new GridLength(2, GridUnitType.Star);
+        var star4 = new GridLength(4, GridUnitType.Star);
 
         Messages = new FlatTreeDataGridSource<FormatedMessage>(this.messages) {
             Columns = {
                 new TextColumn<FormatedMessage, string>("Source", message => message.Source),
-                new TextColumn<FormatedMessage, string>("Timestamp", message => message.TimeStamp),
+                new TemplateColumn<FormatedMessage>("Timestamp", "TimestampCell"),
                 new TextColumn<FormatedMessage, string>("Type", message => message.Type),
-                new TextColumn<FormatedMessage, string>("Message", message => message.Message.TrimEnd(), fourStarLength),
+                new TextColumn<FormatedMessage, string>("Message", message => message.Message.TrimEnd(), star4),
                 // new TemplateColumn<FormatedMessage>("Message", "MessageCell", fourStarLength),
             }
         };
         
-        Clients = new FlatTreeDataGridSource<IClient>(this.clients) {
+        Clients = new FlatTreeDataGridSource<ClientVM>(this.clients) {
             Columns = {
-                new TemplateColumn<IClient>("Source", "EndPointCell"),
-                new TemplateColumn<IClient>("Bytes Recieved", "RecievedCell"),
-                new TemplateColumn<IClient>("Bytes Transmitted", "TransmittedCell"),
-                new TemplateColumn<IClient>("Status", "StatusCell"),
+                new TemplateColumn<ClientVM>("Source", "EndPointCell", null, star2),
+                new TemplateColumn<ClientVM>("Status", "StatusCell", null, star1),
+                new TemplateColumn<ClientVM>("Age", "ConnectionAgeCell", null, star1),
+                new TemplateColumn<ClientVM>("Recieved", "RecievedCell", null, star1),
+                new TemplateColumn<ClientVM>("Transmitted", "TransmittedCell", null, star1),
                 // new TextColumn<IClient, IObservable<string>>("Status", client => client.Status, fourStarLength),
             }
         };
@@ -79,8 +86,8 @@ public partial class MainViewModel : ObservableValidator
 
     public MainViewModel(MainViewModelSettings? serialization) : this()
     {
-        this.serverFactory = AvaliableServers.FirstOrDefault(server => server.Name == serialization?.Server, AvaliableServers.First());
-        this.serverIP = SystemIPs.FirstOrDefault(ip => ip.ToString() == serialization?.IP, IPAddress.Any);
+        ServerFactory = AvaliableServers.FirstOrDefault(server => server.Name == serialization?.Server, AvaliableServers.First());
+        ServerIP = SystemIPs.FirstOrDefault(ip => ip.ToString() == serialization?.IP, IPAddress.Any);
         this.serverPort = serialization?.Port ?? 0;
     }
 
@@ -90,7 +97,7 @@ public partial class MainViewModel : ObservableValidator
     {
         this.messages.Add(message);
         if (LoggingEnabled) {
-            this.logStream?.WriteLine($"{message.Source}, {message.TimeStamp:s}, {message.Message}");
+            this.logStream?.WriteLine($"{message.Source}, {message.Timestamp:s}, {message.Message}");
             this.logStream?.Flush();
         }
     }
@@ -99,14 +106,12 @@ public partial class MainViewModel : ObservableValidator
 
     public void OnRemoteConnect(object? sender, NewClient message)
     {
-        this.clients.Add(message.Client);
+        this.clients.Add(new(message.Client));
         PostMessage(message.ToFormated());
 
         message.Client.DataTransmitted += OnDataTransmitted;
         message.Client.DataRecieved += OnDataRecieved;
         message.Client.Exception += OnClientException;
-
-        ActiveClientCount++;
     }
 
     public void OnRemoteDisconnect(object? sender, RemoteDisconnect message)
@@ -116,8 +121,6 @@ public partial class MainViewModel : ObservableValidator
         message.Client.DataTransmitted -= OnDataTransmitted;
         message.Client.DataRecieved -= OnDataRecieved;
         message.Client.Exception -= OnClientException;
-
-        ActiveClientCount--;
     }
 
     public void OnDataTransmitted(object? sender, DataTransmission transmission)
@@ -134,7 +137,7 @@ public partial class MainViewModel : ObservableValidator
         PostMessage(new() {
             Source = source,
             Message = exception.Message,
-            TimeStamp = DateTime.UtcNow.ToString("HH:mm:ss.ffff"),
+            Timestamp = DateTime.UtcNow.ToString("HH:mm:ss.ffff"),
             Type = "Exception",
         });
     }
@@ -150,7 +153,7 @@ public partial class MainViewModel : ObservableValidator
     public void ClearClients()
     {
         for (int index = this.clients.Count - 1; index >= 0; index--)
-            if (this.clients[index].ConnectionStatus is not ConnectionStatus.Connected) 
+            if (this.clients[index].Client.ConnectionStatus is not ConnectionStatus.Connected) 
                 this.clients.RemoveAt(index);
     }
 
@@ -185,7 +188,7 @@ public partial class MainViewModel : ObservableValidator
     }
 
     public async Task StopServer() {
-        if (this.server is null) throw new NullReferenceException();
+        ArgumentNullException.ThrowIfNull(this.server);
 
         await this.server.Stop();
 
@@ -217,7 +220,7 @@ public partial class MainViewModel : ObservableValidator
 
     #endregion
 
-    public bool CanServerStart => !ServerRunning && ServerIP is not null && ServerPort is not null && ServerFactory is not null;
+    public bool CanServerStart => !ServerRunning && ServerPort is not null;
     public bool ServerRunning => this.server?.Running ?? false;
 
     public static List<IServerFactory> AvaliableServers { get; } = [.. ServerFactories.Avaliable];

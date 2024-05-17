@@ -1,26 +1,17 @@
-﻿using System;
-using System.Net;
-using ProtoHackersDotNet.Servers.Interface.Client;
-using ByteSizeLib;
+﻿namespace ProtoHackersDotNet.GUI.MainView;
 
-namespace ProtoHackersDotNet.GUI.MainView;
-
-public class ClientVM(IClient client) : IDisposable
+public class ClientVM(IClient client)
 {
-    private readonly IClient client = client;
-    private readonly DateTime creationTime = DateTime.UtcNow;
+    static readonly TimeSpan UpdateInterval = TimeSpan.FromSeconds(1);
 
-    public EndPoint? RemoteEndPoint => client.RemoteEndPoint;
-    public IObservable<string?> NameChanges => client.NameChanges;
-    public IObservable<ConnectionStatus> ConnectionStatusChanges => client.ConnectionStatusChanges;
-    public ConnectionStatus ConnectionStatus => client.ConnectionStatus;
-    public IObservable<string> StatusChanges => client.StatusChanges;
-    public string? StatusExtended => client.StatusExtended;
-    public IObservable<ByteSize> TotalBytesRecievedChanges => client.TotalBytesRecievedChanges;
-    public IObservable<ByteSize> TotalBytesTransmittedChanges => client.TotalBytesTransmittedChanges;
+    public IClient Client { get; } = client;
 
-    public void Dispose()
-    {
-        // Dispose any resources if needed
-    }
+    public IObservable<TimeSpan> ConnectionAge { get; }
+        = Observable.Interval(UpdateInterval).Select(_ => client.ConnectedAt - DateTime.UtcNow)
+                    .TakeWhile(_ => client.ConnectionStatus is ConnectionStatus.Connected)
+                    .StartWith(TimeSpan.Zero).Replay(1).RefCount();
+
+    public IObservable<bool> IsConnected { get; } = client.ConnectionStatusChanges.Select(status => status == ConnectionStatus.Connected);
+    public IObservable<bool> IsDisconnected { get; } = client.ConnectionStatusChanges.Select(status => status == ConnectionStatus.Disconnected);
+    public IObservable<bool> IsTerminated { get; } = client.ConnectionStatusChanges.Select(status => status == ConnectionStatus.Terminated);
 }
