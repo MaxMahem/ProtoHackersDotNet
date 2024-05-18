@@ -1,9 +1,9 @@
 ﻿using Avalonia.Controls.Primitives;
 using Avalonia.Xaml.Interactivity;
 
-namespace ProtoHackersDotNet.GUI;
+namespace ProtoHackersDotNet.GUI.Behaviors;
 
-public class ScrollToEndBehavior : Behavior<TreeDataGrid>
+public class ScrollToEndTreeDataGridBehavior : Behavior<TreeDataGrid>
 {
     Vector scrollPosition = Vector.One;
 
@@ -23,26 +23,28 @@ public class ScrollToEndBehavior : Behavior<TreeDataGrid>
 
     protected override void OnDetachedFromVisualTree()
     {
-        if (AssociatedObject is not null) {
+        if (AssociatedObject is not null)
+        {
             AssociatedObject.TemplateApplied -= AssociatedObjectOnTemplateApplied;
             if (AssociatedObject.FindControl<ScrollViewer>("PART_ScrollViewer") is ScrollViewer scrollViewer)
                 scrollViewer.ScrollChanged -= ScrollViewerOnScrollChanged;
         }
     }
 
-    void AssociatedObjectOnTemplateApplied(object? sender, TemplateAppliedEventArgs args) 
+    void AssociatedObjectOnTemplateApplied(object? sender, TemplateAppliedEventArgs args)
         => args.NameScope.Get<ScrollViewer>("PART_ScrollViewer").ScrollChanged += ScrollViewerOnScrollChanged;
 
     void ScrollViewerOnScrollChanged(object? sender, ScrollChangedEventArgs args)
     {
-        if (sender is ScrollViewer scrollViewer) {
+        if (sender is ScrollViewer scrollViewer)
+        {
             // window changed size. Scroll
-            if ((args.ExtentDelta.Length is not 0 || args.ViewportDelta.Length is not 0) 
-                && GetScrollOffset(scrollViewer, this.scrollPosition) is Vector offset)
+            if ((args.ExtentDelta.Length is not 0 || args.ViewportDelta.Length is not 0)
+                && GetScrollOffset(scrollViewer, scrollPosition) is Vector offset)
                 scrollViewer.Offset = offset;
             // offsest changed, set new scroll position
             else if (args.OffsetDelta.Length > 0)
-                this.scrollPosition = GetScrollPercent(scrollViewer);
+                scrollPosition = GetScrollPercent(scrollViewer);
         }
     }
 }

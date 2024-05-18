@@ -7,9 +7,9 @@ public class ClientVM(IClient client)
     public IClient Client { get; } = client;
 
     public IObservable<TimeSpan> ConnectionAge { get; }
-        = Observable.Interval(UpdateInterval).Select(_ => client.ConnectedAt - DateTime.UtcNow)
+        = Observable.Interval(UpdateInterval).Select(_ => client.ConnectedAt - DateTime.UtcNow).StartWith(TimeSpan.Zero)
                     .TakeWhile(_ => client.ConnectionStatus is ConnectionStatus.Connected)
-                    .StartWith(TimeSpan.Zero).Replay(1).RefCount();
+                    .Replay(1).RefCount();
 
     public IObservable<bool> IsConnected { get; } = client.ConnectionStatusChanges.Select(status => status == ConnectionStatus.Connected);
     public IObservable<bool> IsDisconnected { get; } = client.ConnectionStatusChanges.Select(status => status == ConnectionStatus.Disconnected);

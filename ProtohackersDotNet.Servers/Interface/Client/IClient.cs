@@ -8,10 +8,9 @@ public interface IClient : IDisposable
     /// <summary>The remote location this client connects to.</summary>
     EndPoint? RemoteEndPoint { get; }
     DateTime ConnectedAt { get; }
-    IObservable<string?> NameChanges { get; }
     IObservable<ConnectionStatus> ConnectionStatusChanges { get; }
     ConnectionStatus ConnectionStatus { get; }
-    IObservable<string> StatusChanges { get; }
+    IObservable<string?> StatusChanges { get; }
     string? StatusExtended { get; }
     IObservable<ByteSize> TotalBytesRecievedChanges { get; }
     IObservable<ByteSize> TotalBytesTransmittedChanges { get; }

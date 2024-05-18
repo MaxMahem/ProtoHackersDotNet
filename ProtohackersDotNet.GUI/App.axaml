@@ -2,12 +2,14 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="ProtoHackersDotNet.GUI.App"
              RequestedThemeVariant="Dark">
+	<Application.Resources>
+		<FontFamily x:Key="Monospace">avares://ProtoHackersDotNet.GUI/Assets/Fonts#IBM Plex Mono</FontFamily>
+		<!--<ResourceInclude Source="avares://ProtoHackersDotNet.GUI/Assets/Themes.axaml" />-->
+	</Application.Resources>
   <Application.Styles>
     <FluentTheme />
 		<StyleInclude Source="avares://Avalonia.Controls.TreeDataGrid/Themes/Fluent.axaml"/>
+		<StyleInclude Source="avares://ProtoHackersDotNet.GUI/Assets/Styles.xaml" />
 		<!--<StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"/>-->
   </Application.Styles>
-	<Application.Resources>
-		<FontFamily x:Key="Monospace">avares://ProtoHackersDotNet.GUI/Assets/Fonts#IBM Plex Mono</FontFamily>
-	</Application.Resources>
 </Application>

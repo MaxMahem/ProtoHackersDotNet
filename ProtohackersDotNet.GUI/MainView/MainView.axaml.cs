@@ -1,11 +1,6 @@
-﻿using Avalonia.Interactivity;
-
-namespace ProtoHackersDotNet.GUI.MainView;
+﻿namespace ProtoHackersDotNet.GUI.MainView;
 
 public partial class MainView : UserControl
 {
-    public MainView()
-    {
-        InitializeComponent();
-    }
+    public MainView() => InitializeComponent();
 }

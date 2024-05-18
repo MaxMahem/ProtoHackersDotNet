@@ -8,12 +8,15 @@ using Avalonia.Controls.Models.TreeDataGrid;
 using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using System.Collections.Specialized;
+using Avalonia.Media.TextFormatting;
+using Avalonia.Media;
 
 namespace ProtoHackersDotNet.GUI.MainView;
 
 public partial class MainViewModel : ObservableValidator
 {
-    public IServerFactory ServerFactory { get; } = AvaliableServers.First();
+    [ObservableProperty]
+    IServerFactory serverFactory = AvaliableServers.First();
 
     public IPAddress ServerIP { get; } = IPAddress.Any;
 
@@ -28,6 +31,8 @@ public partial class MainViewModel : ObservableValidator
 
     public IObservable<int> ActiveClientCount { get; }
 
+    public IObservable<int> MessageCount { get; }
+
     // [ObservableProperty, NotifyPropertyChangedFor(nameof(ClientHeader))]
     // int activeClientCount = 0;
 
@@ -40,8 +45,8 @@ public partial class MainViewModel : ObservableValidator
     readonly ObservableCollection<FormatedMessage> messages = [];
     public FlatTreeDataGridSource<FormatedMessage>? Messages { get; }
 
-    readonly ObservableCollection<ClientVM> clients = [];
-    public FlatTreeDataGridSource<ClientVM>? Clients { get; }
+    public ObservableCollection<ClientVM> Clients { get; } = [];
+    public FlatTreeDataGridSource<ClientVM>? Clients2 { get; }
 
     #region Constructors
 
@@ -52,27 +57,35 @@ public partial class MainViewModel : ObservableValidator
 
         // build an observer that triggers a client count when a client is added/removed or when the connection status changes
         ActiveClientCount = Observable.FromEventPattern<NotifyCollectionChangedEventHandler, NotifyCollectionChangedEventArgs>(
-            handler => this.clients.CollectionChanged += handler,
-            handler => this.clients.CollectionChanged -= handler)
-            .SelectMany(_ => this.clients.Select(vm => vm.Client.ConnectionStatusChanges).Merge())
-            .Select(_ => this.clients.Where(vm => vm.Client.ConnectionStatus is ConnectionStatus.Connected).Count())
-            .StartWith(this.clients.Count);
+            handler => this.Clients.CollectionChanged += handler,
+            handler => this.Clients.CollectionChanged -= handler)
+            .SelectMany(_ => this.Clients.Select(vm => vm.Client.ConnectionStatusChanges).Merge())
+            .Select(_ => this.Clients.Where(vm => vm.Client.ConnectionStatus is ConnectionStatus.Connected).Count())
+            .StartWith(this.Clients.Count);
+
+        MessageCount = Observable.FromEventPattern<NotifyCollectionChangedEventHandler, NotifyCollectionChangedEventArgs>(
+            handler => this.messages.CollectionChanged += handler,
+            handler => this.messages.CollectionChanged -= handler)
+            .Select(_ => this.messages.Count)
+            .StartWith(this.messages.Count);
 
         var star1 = new GridLength(1, GridUnitType.Star);
         var star2 = new GridLength(2, GridUnitType.Star);
         var star4 = new GridLength(4, GridUnitType.Star);
+
+        TextTrimming textTrimming = TextTrimming.CharacterEllipsis;
 
         Messages = new FlatTreeDataGridSource<FormatedMessage>(this.messages) {
             Columns = {
                 new TextColumn<FormatedMessage, string>("Source", message => message.Source),
                 new TemplateColumn<FormatedMessage>("Timestamp", "TimestampCell"),
                 new TextColumn<FormatedMessage, string>("Type", message => message.Type),
-                new TextColumn<FormatedMessage, string>("Message", message => message.Message.TrimEnd(), star4),
+                new TextColumn<FormatedMessage, string>("Message", message => message.Message.TrimEnd(), star4)
                 // new TemplateColumn<FormatedMessage>("Message", "MessageCell", fourStarLength),
             }
         };
-        
-        Clients = new FlatTreeDataGridSource<ClientVM>(this.clients) {
+
+        Clients2 = new FlatTreeDataGridSource<ClientVM>(this.Clients) {
             Columns = {
                 new TemplateColumn<ClientVM>("Source", "EndPointCell", null, star2),
                 new TemplateColumn<ClientVM>("Status", "StatusCell", null, star1),
@@ -106,7 +119,7 @@ public partial class MainViewModel : ObservableValidator
 
     public void OnRemoteConnect(object? sender, NewClient message)
     {
-        this.clients.Add(new(message.Client));
+        this.Clients.Add(new(message.Client));
         PostMessage(message.ToFormated());
 
         message.Client.DataTransmitted += OnDataTransmitted;
@@ -152,9 +165,9 @@ public partial class MainViewModel : ObservableValidator
     public void ClearMessages() => this.messages.Clear();
     public void ClearClients()
     {
-        for (int index = this.clients.Count - 1; index >= 0; index--)
-            if (this.clients[index].Client.ConnectionStatus is not ConnectionStatus.Connected) 
-                this.clients.RemoveAt(index);
+        for (int index = this.Clients.Count - 1; index >= 0; index--)
+            if (this.Clients[index].Client.ConnectionStatus is not ConnectionStatus.Connected) 
+                this.Clients.RemoveAt(index);
     }
 
     public async Task StartServer() {

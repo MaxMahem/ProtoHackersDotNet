@@ -31,16 +31,9 @@ public abstract partial class TcpClientBase<TServer, TClient>(TcpClient client, 
         protected set => this.connectionStatusSubject.OnNext(value);
     }
 
-    public IObservable<string?> NameChanges => nameSubject.AsObservable();
-    readonly BehaviorSubject<string?> nameSubject = new(null);
-    protected string? Name {
-        get => this.nameSubject.Value;
-        set => this.nameSubject.OnNext(value);
-    }
-
-    public IObservable<string> StatusChanges => statusSubject.AsObservable();
-    readonly BehaviorSubject<string> statusSubject = new("Connected");
-    protected string Status {
+    public IObservable<string?> StatusChanges => statusSubject.AsObservable();
+    readonly BehaviorSubject<string?> statusSubject = new(null);
+    protected string? Status {
         get => this.statusSubject.Value;
         set => this.statusSubject.OnNext(value);
     }
@@ -122,7 +115,6 @@ public abstract partial class TcpClientBase<TServer, TClient>(TcpClient client, 
             } while (!readResult.IsCompleted);
 
             ConnectionStatus = ConnectionStatus.Disconnected;
-            Status = "Disconnect";
         }
         catch (Exception exception) {
             await OnException(exception);
@@ -131,7 +123,6 @@ public abstract partial class TcpClientBase<TServer, TClient>(TcpClient client, 
             // this.client.Close();
 
             ConnectionStatus = ConnectionStatus.Terminated;
-            Status = "Terminated";
             StatusExtended = exception.Message;
 
             Exception?.Invoke(this, exception);
@@ -216,10 +207,4 @@ public abstract partial class TcpClientBase<TServer, TClient>(TcpClient client, 
         this.networkStream.Dispose();
         this.client.Dispose();
     }
-}
-
-public static class ByteSizeHelper
-{
-    public static ByteSize ToByteSize(this ReadOnlySequence<byte> data) => ByteSize.FromBytes(data.Length);
-    public static ByteSize ToByteSize(this ReadOnlyMemory<byte> data) => ByteSize.FromBytes(data.Length);
 }

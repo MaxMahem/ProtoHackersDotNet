@@ -5,13 +5,9 @@ namespace ProtoHackersDotNet.GUI.MainView;
 
 public static class Converters
 {
-    /// <summary>Converts an endpoint and a string into a name.</summary>
-    public static FuncMultiValueConverter<object?, string> ClientNameConverter { get; } =
-        new(objects => objects.ToArray() switch {
-            [EndPoint endPoint, string name] => $"{endPoint} - \"{name}\"",
-            [EndPoint endPoint, _] => endPoint.ToString() ?? ThrowHelper.ThrowArgumentNullException<string>(),
-            _ => string.Empty
-        });
+    /// <summary>Joins a bunch of values into one string.</summary>
+    public static FuncMultiValueConverter<object?, string> JoinConverter { get; } 
+        = new(objects => string.Join(" - ", objects.Where(obj => obj is not null)));
 
     public static FuncMultiValueConverter<object?, Brush> StatusBrushConverter { get; } =
         new(objects => objects.ToArray() switch {

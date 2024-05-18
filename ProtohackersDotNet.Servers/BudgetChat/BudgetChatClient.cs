@@ -14,7 +14,6 @@ public sealed class BudgetChatClient(TcpClient client, BudgetChatServer server, 
     protected override async Task OnConnect()
     {
         await Transmit(server.WelcomeMessageAscii.ToTransmission(false));
-        Status = "Welcome";
         State = BudgetChatClientState.Welcome;
     }
 
@@ -42,8 +41,7 @@ public sealed class BudgetChatClient(TcpClient client, BudgetChatServer server, 
                 ChatName = AsciiName.From(new(line));
 
                 State = BudgetChatClientState.Joined;
-                Name = ChatName.Value.ToString();
-                Status = "Joined";
+                Status = $"Joined: {ChatName.Value}";
 
                 await this.server.BroadcastJoin(this);
 

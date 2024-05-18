@@ -4,7 +4,18 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
 				xmlns:mv="using:ProtoHackersDotNet.GUI.MainView"
         x:Class="ProtoHackersDotNet.GUI.MainView.MainWindow"
-        Icon="/Assets/avalonia-logo.ico"
+        Icon="/Assets/ProtoHackersDotNet.ico"
+				ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="PreferSystemChrome"
+        ExtendClientAreaTitleBarHeightHint="30"
+        SystemDecorations="Full"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450">
-        <mv:MainView />
+	<DockPanel>
+		<StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+			<Image Width="30" Height="30"
+					   Source="avares://ProtoHackersDotNet.GUI/Assets/ProtoHackersDotNet.ico" />
+			<TextBlock VerticalAlignment="Center" Classes="h1" Padding="4">ProtoHackers.Net</TextBlock>
+		</StackPanel>
+		<mv:MainView Margin="10" />
+	</DockPanel>
 </Window>
