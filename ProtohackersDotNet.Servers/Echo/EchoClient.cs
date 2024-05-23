@@ -1,15 +1,13 @@
-﻿using ByteSizeLib;
-using ProtoHackersDotNet.Servers.TcpServer;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+﻿namespace ProtoHackersDotNet.Servers.Echo;
 
-namespace ProtoHackersDotNet.Servers.Echo;
-
-public class EchoClient(TcpClient client, EchoServer server, CancellationToken token)
-    : TcpClientBase<EchoServer, EchoClient>(client, server, token)
+public class EchoClient(EchoServer server, TcpClient client, CancellationToken token)
+    : TcpClientBase<EchoServer>(server, client, token)
 {
+    public static EchoClient Create(EchoServer server, TcpClient client, CancellationToken token) 
+        => new(server, client, token);
     protected override SequencePosition? FindLineEnd(ReadOnlySequence<byte> buffer) => buffer.End;
 
     protected override async Task ProcessLine(ReadOnlySequence<byte> line) => await Transmit(line, false);
 
-    protected override string TranslateReciept(ReadOnlySequence<byte> buffer) => ByteSize.FromBytes(buffer.Length).ToString();
+    protected override string TranslateRecieption(ReadOnlySequence<byte> buffer) => $"{buffer.ToByteSize()} recieved.";
 }

@@ -1,5 +1,5 @@
 ﻿using ProtoHackersDotNet.Servers.Helpers;
-using ProtoHackersDotNet.Servers.Interface.Client;
+using ProtoHackersDotNet.Servers.Interfaces.Client;
 using System.Text;
 
 namespace ProtoHackersDotNet.Servers.JsonPrime;

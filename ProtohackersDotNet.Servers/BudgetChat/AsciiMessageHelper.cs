@@ -5,6 +5,6 @@ namespace ProtoHackersDotNet.Servers.BudgetChat;
 
 static class AsciiMessageHelper
 {
-    public static AsciiTransmission ToTransmission(this Ascii ascii, bool broadcast) 
+    public static AsciiTransmission ToTransmission(this ascii ascii, bool broadcast) 
         => new(ascii, broadcast);
 }

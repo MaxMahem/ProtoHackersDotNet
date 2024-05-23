@@ -1,13 +1,46 @@
 <Styles xmlns="https://github.com/avaloniaui"
-      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+				xmlns:md="https://github.com/whistyun/Markdown.Avalonia.Tight"
+				xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia">
 	<Design.PreviewWith>
 		<Border Padding="20">
-			<StackPanel TextAlignment="Left" HorizontalAlignment="Left">
-				<TextBlock Classes="h1">Header h1</TextBlock>
+			<StackPanel>
 				<Label Classes="h1">Label h2</Label>
+				<TextBlock Classes="h1">Header h1</TextBlock>
+				<TextBox Classes="mono invalid">mono invalid</TextBox>
+				<NumericUpDown Classes="mono invalid" />
+				<TabControl>
+					<TabItem Header="Tab1">Tab1</TabItem>
+					<TabItem Header="Tab2">Tab2</TabItem>
+				</TabControl>
 			</StackPanel>
 		</Border>
 	</Design.PreviewWith>
+
+	<Style Selector="TabControl">
+		<Setter Property="Padding" Value="0" />
+	</Style>
+	<Style Selector="TabControl#LocalRemote /template/ WrapPanel">
+		<Setter Property="HorizontalAlignment" Value="Right"/>
+	</Style>
+	<Style Selector="TabControl#LocalRemote /template/ ContentPresenter#PART_SelectedContentHost">
+		<Setter Property="Margin" Value="0"/>
+	</Style>
+	<Style Selector="TabItem">
+		<Setter Property="MinHeight" Value="0" />
+		<Setter Property="FontSize" Value="16" />
+		<Setter Property="FontWeight" Value="SemiBold"/>
+		<Setter Property="Padding" Value="12 4 2 4"/>
+	</Style>
+
+	<Style Selector="TextBox.invalid /template/ Border#PART_BorderElement">
+		<Setter Property="BorderBrush" Value="{DynamicResource SystemControlErrorTextForegroundBrush}"/>
+	</Style>
+	<Style Selector="NumericUpDown.invalid TextBox /template/ Border">
+		<Setter Property="BorderBrush" Value="{DynamicResource SystemControlErrorTextForegroundBrush}"/>
+	</Style>
+	
+	
 	
 	<Style Selector="TextBlock.h1">
 		<Setter Property="FontSize" Value="16"/>
@@ -64,7 +97,6 @@
 	<Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pointerover /template/ Border#ToggleButtonBackground">
 		<Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
 	</Style>
-	
 
 	<Style Selector="Label.header">
 		<Setter Property="Padding" Value="4 2 4 2" />

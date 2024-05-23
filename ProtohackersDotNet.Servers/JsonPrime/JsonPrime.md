@@ -1,5 +1,4 @@
-﻿"""
-# 1: Prime Time
+﻿# 1: Prime Time
 
 To keep costs down, a hot new government department is contracting out its mission-critical primality testing to the lowest bidder. (That's you).
 

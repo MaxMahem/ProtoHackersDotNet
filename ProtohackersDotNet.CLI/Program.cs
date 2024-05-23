@@ -1,6 +1,6 @@
 ﻿using Spectre.Console;
-using ProtoHackersDotNet.Servers.Interface.Client;
-using ProtoHackersDotNet.Servers.Interface.Server;
+using ProtoHackersDotNet.Servers.Interfaces.Client;
+using ProtoHackersDotNet.Servers.Interfaces.Server;
 
 using var server = ServiceSelector.SelectService(out string serviceName);
 CancellationTokenSource cancellationTokenSource = new();

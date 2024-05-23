@@ -1,7 +1,7 @@
 ﻿namespace ProtoHackersDotNet.Servers.PriceTracker;
 
-public sealed partial class PriceTrackerClient(TcpClient client, PriceTrackerServer service, CancellationToken token)
-    : TcpClientBase<PriceTrackerServer, PriceTrackerClient>(client, service, token), IClient
+public sealed partial class PriceTrackerClient(PriceTrackerServer server, TcpClient client, CancellationToken token)
+    : TcpClientBase<PriceTrackerServer>(server, client, token)
 {
     readonly List<PriceMessage> priceHistory = [];
     readonly byte[] response = new byte[sizeof(int)];
@@ -17,7 +17,7 @@ public sealed partial class PriceTrackerClient(TcpClient client, PriceTrackerSer
         switch (priceMessage) {
             case { Type: PriceMessageType.Insert } insertMessage:
                 this.priceHistory.Add(insertMessage);
-                Status = $"{this.priceHistory.Count} entries";
+                StatusValue = $"{this.priceHistory.Count} entries";
                 break;
             case { Type: PriceMessageType.Query } queryMessage:
                 int average = AveragePrice(queryMessage);
@@ -38,7 +38,7 @@ public sealed partial class PriceTrackerClient(TcpClient client, PriceTrackerSer
         => query.MinTime <= query.MaxTime ? (int) this.priceHistory.Where(query.IsInRange).Select(entry => entry.Price)
                                                                    .DefaultIfEmpty(0).Average() : 0;
 
-    protected override string TranslateReciept(ReadOnlySequence<byte> buffer)
+    protected override string TranslateRecieption(ReadOnlySequence<byte> buffer)
         => $"{buffer.Length / (double) PriceMessage.MESSAGE_LENGTH:0.#} messages ({buffer.ToByteSize()})";
 
     readonly struct QueryResponse(ReadOnlyMemory<byte> data, DateTimeOffset min, DateTimeOffset max, int average) : ITransmission

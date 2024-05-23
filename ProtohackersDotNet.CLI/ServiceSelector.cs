@@ -1,14 +1,15 @@
 ﻿using System.Net;
 using System.Net.NetworkInformation;
 using Spectre.Console;
-using ProtoHackersDotNet.Servers.Interface.Server;
-using ProtoHackersDotNet.Servers.Interface.Client;
+using ProtoHackersDotNet.Servers.Interfaces.Server;
+using ProtoHackersDotNet.Servers.Interfaces.Client;
+using ProtoHackersDotNet.Servers.TcpServer;
 
 static class ServiceSelector
 {
     static readonly SelectionPrompt<IServerFactory> ServiceSelectionPrompt = new SelectionPrompt<IServerFactory>()
         .Title("Select the service to run:")
-        .AddChoices(ServerFactories.Avaliable)
+        .AddChoices(ServerRepository.Avaliable)
         .UseConverter(serviceData => serviceData.Name);
 
     static readonly SelectionPrompt<IPAddress> IpAddressPrompt = new SelectionPrompt<IPAddress>()

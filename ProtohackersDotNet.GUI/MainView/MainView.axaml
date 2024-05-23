@@ -6,7 +6,9 @@
 						 xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"
 						 xmlns:ia="using:Avalonia.Xaml.Interactivity"
 						 xmlns:mv="using:ProtoHackersDotNet.GUI.MainView"
+						 xmlns:mvc="using:ProtoHackersDotNet.GUI.MainView.Client"
 						 xmlns:behave="using:ProtoHackersDotNet.GUI.Behaviors"
+						 xmlns:i="using:ProtoHackersDotNet.Servers.Interfaces"
 						 xmlns:ci="using:ProtoHackersDotNet.Servers.Interface.Client"
              x:Class="ProtoHackersDotNet.GUI.MainView.MainView"
              x:DataType="mv:MainViewModel"
@@ -19,8 +21,8 @@
 			<DockPanel DockPanel.Dock="Top">
 				<Label DockPanel.Dock="Left" Target="{Binding #TypeDropdown}" Classes="h1">Server</Label>
 				<ComboBox Name="TypeDropdown" HorizontalAlignment="Right"
-									ItemsSource="{Binding AvaliableServers}" SelectedItem="{Binding ServerFactory}"
-									IsEnabled="{Binding !ServerRunning}">
+									ItemsSource="{Binding Servers}" SelectedItem="{Binding Server}"
+									IsEnabled="{Binding !Server.Listening^}">
 					<ComboBox.ItemTemplate>
 						<DataTemplate>
 							<TextBlock Text="{Binding Name}"/>
@@ -29,29 +31,73 @@
 				</ComboBox>
 			</DockPanel>
 			<StackPanel DockPanel.Dock="Bottom">
-				<Grid ColumnDefinitions="1*, 2*" RowDefinitions="auto, auto">
-					<Label    Grid.Column="0" Grid.Row="0" Target="{Binding #ServerIP}" 
-										VerticalAlignment="Center" Classes="h2">IP</Label>
-					<ComboBox Grid.Column="1" Grid.Row="0" Name="ServerIP" 
-										HorizontalAlignment="Stretch" Classes="mono"
-										ItemsSource="{Binding SystemIPs}" SelectedItem="{Binding ServerIP}"
-										IsEnabled="{Binding !ServerRunning}" />
-					<Label         Grid.Column="0" Grid.Row="1" Target="{Binding #ServerPort}" 
-												 VerticalAlignment="Center" Classes="h2">Port</Label>
-					<NumericUpDown Grid.Column="1" Grid.Row="1" Name="ServerPort" 
-												 ShowButtonSpinner="False" Classes="mono"
-												 Value="{Binding ServerPort}" Minimum="0" Maximum="65535" FormatString="0"
-												 IsEnabled="{Binding !ServerRunning}" />
-				</Grid>
+				<TabControl Name="LocalRemote">
+					<TabItem Header="Local">
+						<Grid ColumnDefinitions="1*, 2*" RowDefinitions="auto, auto">
+							<Label    Grid.Column="0" Grid.Row="0" Target="{Binding #LocalIP}"
+												VerticalAlignment="Center" Classes="h2">IP</Label>
+							<ComboBox Grid.Column="1" Grid.Row="0" Name="LocalIP"
+												HorizontalAlignment="Stretch" Classes="mono"
+												ItemsSource="{Binding LocalEndPoint.SelectableIPs}" SelectedItem="{Binding LocalEndPoint.IP}"
+												IsEnabled="{Binding !Server.Listening^}" />
+							<Label         Grid.Column="0" Grid.Row="1" Target="{Binding #LocalPort}"
+														 VerticalAlignment="Center" Classes="h2">Port</Label>
+							<NumericUpDown Grid.Column="1" Grid.Row="1" Name="LocalPort"
+														 ShowButtonSpinner="False" Classes="mono"
+														 Classes.invalid="{Binding !LocalEndPoint.PortValid^}"
+														 Value="{Binding LocalEndPoint.Port}"
+														 Minimum="0" Maximum="65535" FormatString="0"
+														 IsEnabled="{Binding !Server.Listening^}" />
+						</Grid>
+					</TabItem>
+					<TabItem Header="Remote">
+						<Grid ColumnDefinitions="1*, 2*" RowDefinitions="auto, auto">
+							<Label    Grid.Column="0" Grid.Row="0" Target="{Binding #RemoteIP}"
+												VerticalAlignment="Center" Classes="h2">IP</Label>
+							<TextBox Grid.Column="1" Grid.Row="0" Name="RemoteIP"
+											 HorizontalAlignment="Stretch" Classes="mono"
+											 Classes.invalid="{Binding !RemoteEndPoint.IPValid^}"
+											 Text="{Binding RemoteEndPoint.IPText}"
+											 IsEnabled="{Binding !ApiTestManager.TestRunning^}" />
+							<Label         Grid.Column="0" Grid.Row="1" Target="{Binding #RemotePort}"
+														 VerticalAlignment="Center" Classes="h2">Port</Label>
+							<NumericUpDown Grid.Column="1" Grid.Row="1" Name="RemotePort"
+														 Minimum="0" Maximum="65535" FormatString="0"
+														 ShowButtonSpinner="False" Classes="mono"
+														 Classes.invalid="{Binding !RemoteEndPoint.PortValid^}"
+														 Value="{Binding RemoteEndPoint.Port}"
+														 IsEnabled="{Binding !ApiTestManager.TestRunning^}" />
+						</Grid>
+					</TabItem>
+				</TabControl>
 				<StackPanel Orientation="Horizontal" FlowDirection="RightToLeft" 
 										Width="{Binding #Server.Bounds.Width}" Spacing="4">
-					<Button Command="{Binding StopServer}"  IsEnabled="{Binding !CanServerStart}">Stop</Button>
-					<Button Command="{Binding Test}" IsEnabled="{Binding !CanServerStart}">Test</Button>
-					<Button Command="{Binding StartServer}" IsEnabled="{Binding CanServerStart}">Start</Button>
+					<Button Command="{Binding StopServer}" IsEnabled="{Binding Server.Listening^}">Stop</Button>
+					<Button Command="{Binding Test}" Name="TestButton">
+						<Button.IsEnabled>
+							<MultiBinding Converter="{x:Static BoolConverters.And}">
+								<Binding Path="Server.Listening^"/>
+								<Binding Path="RemoteEndPoint.Valid^"/>
+								<Binding Path="!ApiTestManager.TestRunning^"/>
+							</MultiBinding>
+						</Button.IsEnabled>
+						<StackPanel Orientation="Horizontal">
+							<TextBlock>Test</TextBlock>
+						</StackPanel>
+					</Button>
+					<Button Command="{Binding StartServer}" IsEnabled="{Binding !Server.Listening^}">
+						<Button.IsEnabled>
+							<MultiBinding Converter="{x:Static BoolConverters.And}">
+								<Binding Path="!Server.Listening^"/>
+								<Binding Path="LocalEndPoint.Valid^"/>
+							</MultiBinding>
+						</Button.IsEnabled>
+						<TextBlock>Start</TextBlock>
+					</Button>
 				</StackPanel>
 			</StackPanel>
 			<Border BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" BorderThickness="1" CornerRadius="3">
-				<md:MarkdownScrollViewer Markdown="{Binding ServerFactory.Description}">
+				<md:MarkdownScrollViewer Markdown="{Binding Server.Description}">
 					<md:MarkdownScrollViewer.Styles>
 						<Style Selector="ctxt|CTextBlock.Heading1">
 							<Setter Property="FontSize" Value="18"/>
@@ -71,13 +117,13 @@
 			</Border>
 		</DockPanel>
 		<GridSplitter Grid.Column="1" ResizeDirection="Columns" MinWidth="2" Margin="5 5"/>
-		<Grid Grid.Column="2" ColumnDefinitions="*" RowDefinitions="Auto, 1, *">
+		<Grid Grid.Column="2" ColumnDefinitions="*" RowDefinitions="Auto, 1, *" Name="RightGrid">
 			<Expander Grid.Column="0" Grid.Row="0" Name="ClientExpander" HorizontalAlignment="Stretch"
-								MinHeight="0" Padding="0" Classes="client"
-								MaxHeight="{Binding #MaxExpander.Bounds.Height}"
+								MinHeight="0" Padding="0" Classes="client" MaxHeight="{Binding #MaxExpander.Bounds.Height}"
+								DataContext="{Binding ClientManager}"
 								Header="{Binding ActiveClientCount^, StringFormat='Clients (Active {0})'}">
 				<DockPanel>
-					<Button DockPanel.Dock="Bottom" HorizontalAlignment="Right" Command="{Binding ClearClients}">Clear Clients</Button>
+					<Button DockPanel.Dock="Bottom" HorizontalAlignment="Right" Command="{Binding ClearDisconnectedClients}">Clear Clients</Button>
 					<Border BorderThickness="1" CornerRadius="0 0 3 3"
 									BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}">
 						<DockPanel>
@@ -88,8 +134,9 @@
 								<Label Grid.Column="3" Classes="h2 header" HorizontalContentAlignment="Right">Recieved</Label>
 								<Label Grid.Column="4" Classes="h2 header" HorizontalContentAlignment="Right">Transmitted</Label>
 							</Grid>
-							<ListBox ItemsSource="{Binding Clients}">
-								<ListBox.DataTemplates><mv:ClientDataTemplate/></ListBox.DataTemplates>
+							<ListBox Name="ClientList" ItemsSource="{Binding Clients}">
+								<ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+								<ListBox.DataTemplates><mvc:ClientDataTemplate/></ListBox.DataTemplates>
 								<Interaction.Behaviors><behave:ScrollToEndListBoxBehavior/></Interaction.Behaviors>
 							</ListBox>
 						</DockPanel>
@@ -102,26 +149,34 @@
 					<Button DockPanel.Dock="Right" Command="{Binding ClearMessages}">Clear Messages</Button>
 					<StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
 						<Label VerticalAlignment="Center" Target="{Binding #LogToggle}">Message Logging</Label>
-						<ToggleSwitch Name="LogToggle" IsChecked="{Binding LoggingEnabled}" IsEnabled="{Binding !ServerRunning}" />
+						<ToggleSwitch Name="LogToggle" IsChecked="{Binding LoggingEnabled}" IsEnabled="{Binding !Server.Listening^}" />
 						<TextBlock Text="{Binding LogFileName}" Margin="5 0 0 0" VerticalAlignment="Center" />
 					</StackPanel>
 				</DockPanel>
 				<TextBlock DockPanel.Dock="Top" Margin="16 8 0 8" Classes="h2"
 									 Text="{Binding MessageCount^, StringFormat='Messages ({0})'}" />
-				<Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" BorderThickness="1" CornerRadius="3">
-					<TreeDataGrid Source="{Binding Messages}">
-						<Interaction.Behaviors><behave:ScrollToEndTreeDataGridBehavior/></Interaction.Behaviors>
-						<TreeDataGrid.Styles>
-						</TreeDataGrid.Styles>
-						<TreeDataGrid.Resources>
-							<DataTemplate x:Key="TimestampCell" x:DataType="mv:FormatedMessage">
-								<TextBlock Text="{Binding Timestamp}" FontFamily="{StaticResource Monospace}" VerticalAlignment="Center" />
-							</DataTemplate>
-							<DataTemplate x:Key="MessageCell" x:DataType="mv:FormatedMessage">
-								<TextBlock Text="{Binding Message}" />
-							</DataTemplate>
-						</TreeDataGrid.Resources>
-					</TreeDataGrid>					
+				<Border BorderThickness="1" CornerRadius="0 0 3 3"
+							  BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}">
+					<Grid IsSharedSizeScope="True" ColumnDefinitions="*" RowDefinitions="*">
+						<DockPanel Grid.Column="0" Grid.Row="0">
+							<Grid DockPanel.Dock="Top">
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="2*" />
+									<ColumnDefinition Width="*" />
+									<ColumnDefinition Width="2*" />
+									<ColumnDefinition Width="5*" />
+								</Grid.ColumnDefinitions>
+								<Label Grid.Column="0" Classes="h2 header">Source</Label>
+								<Label Grid.Column="1" Classes="h2 header" HorizontalContentAlignment="Center">Timestamp</Label>
+								<Label Grid.Column="2" Classes="h2 header" HorizontalContentAlignment="Center">Type</Label>
+								<Label Grid.Column="3" Classes="h2 header" HorizontalContentAlignment="Right">Message</Label>
+							</Grid>
+							<ListBox ItemsSource="{Binding Messages}">
+								<ListBox.DataTemplates><mv:DisplayMessageTemplate/></ListBox.DataTemplates>
+								<Interaction.Behaviors><behave:ScrollToEndListBoxBehavior/></Interaction.Behaviors>
+							</ListBox>
+						</DockPanel>
+					</Grid>
 				</Border>
 			</DockPanel>
 		</Grid>

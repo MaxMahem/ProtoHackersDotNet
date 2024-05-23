@@ -1,32 +1,38 @@
 ﻿using System.Text;
+using ProtoHackersDotNet.AsciiString;
 
 namespace ProtoHackersDotNet.Servers.BudgetChat;
 
-public sealed class BudgetChatClient(TcpClient client, BudgetChatServer server, CancellationToken token)
-    : TcpClientBase<BudgetChatServer, BudgetChatClient>(client, server, token)
+public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, CancellationToken token)
+    : TcpClientBase<BudgetChatServer>(server, client, token)
 {
+    readonly static byte[] WhiteSpace = [(byte) ' ', (byte) '\n'];
+
     public BudgetChatClientState State { get; private set; } = BudgetChatClientState.Welcome;
 
-    internal AsciiName? ChatName { get; private set; } = null;
+    public AsciiName? UserName { get; private set; } = null;
 
     #region On Overloads
 
     protected override async Task OnConnect()
     {
-        await Transmit(server.WelcomeMessageAscii.ToTransmission(false));
+        await Transmit(server.WelcomeMessage.ToTransmission(false));
         State = BudgetChatClientState.Welcome;
     }
 
     protected override async Task OnException(Exception exception)
     {
-        if (this.client.Connected)
-            await Transmit(Encoding.ASCII.GetBytes(exception.Message + '\n'), exception.Message, false);
+        if (CurrentConnectionStatus is Interfaces.Client.ConnectionStatus.Connected) {
+            ascii ascii = new(exception.Message + '\n');
+            await Transmit(ascii.ToTransmission(false));
+        }
+            
     }
 
     protected override async Task OnDisconnect()
     {
         if (State == BudgetChatClientState.Joined)
-            await this.server.BroadcastPart(this);
+            await server.BroadcastPart(this);
         State = BudgetChatClientState.Parted;
     }
 
@@ -34,22 +40,24 @@ public sealed class BudgetChatClient(TcpClient client, BudgetChatServer server, 
 
     protected override async Task ProcessLine(ReadOnlySequence<byte> line)
     {
-        // trim the last character from the sequence, it's a line ending.
-        line = line.Slice(0, line.Length - 1);
+        // Trim any trailing whitespace from the sequence. 
+        var lastPosition = line.LastPositionOfAnyExcept(WhiteSpace) 
+            ?? ThrowHelper.ThrowInvalidOperationException<SequencePosition>("There should always be a line ending to trim.");
+        line = line.Slice(line.Start, line.GetPosition(1, lastPosition)); // slice is *exclusive* of the end, we want inclusive.
+
         switch (State) {
             case BudgetChatClientState.Welcome:
-                ChatName = AsciiName.From(new(line));
+                UserName = AsciiName.From(new(line));
 
                 State = BudgetChatClientState.Joined;
-                Status = $"Joined: {ChatName.Value}";
+                StatusValue = $"Joined: {UserName.Value}";
 
-                await this.server.BroadcastJoin(this);
+                await server.BroadcastJoin(this);
 
-                await Transmit(this.server.GetPresentNotice(this).ToTransmission(false));
+                await Transmit(server.GetPresentNotice(this).ToTransmission(false));
                 break;
             case BudgetChatClientState.Joined:
-                var chatMessage = this.server.FormatChatMessage(this, line);
-                await this.server.BroadcastChat(this, chatMessage.ToTransmission(true));
+                await server.BroadcastChat(this, line);
                 break;
             default:
                 throw new InvalidOperationException();
@@ -60,6 +68,6 @@ public sealed class BudgetChatClient(TcpClient client, BudgetChatServer server, 
     protected override SequencePosition? FindLineEnd(ReadOnlySequence<byte> buffer)
         => buffer.PositionOf(BudgetChatServer.LINE_DELIMITER, 1);
 
-    protected override string TranslateReciept(ReadOnlySequence<byte> buffer)
+    protected override string TranslateRecieption(ReadOnlySequence<byte> buffer)
         => Encoding.ASCII.GetString(buffer);
 }

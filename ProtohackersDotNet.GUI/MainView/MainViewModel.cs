@@ -1,27 +1,37 @@
-﻿using System.Text.Json.Serialization;
-using System.Threading.Tasks;
-using System.Net.Http;
-using System.Net.Http.Json;
+﻿using System.Threading.Tasks;
 using System.Net.NetworkInformation;
-using Avalonia.Threading;
-using Avalonia.Controls.Models.TreeDataGrid;
 using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using System.Collections.Specialized;
-using Avalonia.Media.TextFormatting;
-using Avalonia.Media;
+using ProtoHackersDotNet.GUI.MainView.ApiTest;
+using Microsoft.Extensions.Options;
+using ProtoHackersDotNet.Servers.Interfaces;
+using ProtoHackersDotNet.GUI.MainView.Client;
+using ProtoHackersDotNet.GUI.MainView.Client.Messages;
 
 namespace ProtoHackersDotNet.GUI.MainView;
 
 public partial class MainViewModel : ObservableValidator
 {
     [ObservableProperty]
-    IServerFactory serverFactory = AvaliableServers.First();
+    IServer<IClient> server;
 
-    public IPAddress ServerIP { get; } = IPAddress.Any;
+    public ObservableCollection<IServer<IClient>> Servers { get; }
 
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(CanServerStart))]
-    ushort? serverPort = 0;
+    public SelectableEndPoint LocalEndPoint { get; }
+    public TextEndPointVM RemoteEndPoint { get; }
+
+    //[ObservableProperty]
+    //public IPAddress localIP = IPAddress.Any;
+
+    // const ushort DEFAULT_PORT_NUMBER = 0;
+    //ushort localPort = DEFAULT_PORT_NUMBER;
+    //public ushort? LocalPort { 
+    //    get => this.localPort;
+    //    set => this.localPort = value ?? DEFAULT_PORT_NUMBER;
+    //}
+
+    //IPEndPoint LocalEndPoint => new IPEndPoint(LocalIP, this.localPort);
 
     [ObservableProperty]
     bool loggingEnabled = false;
@@ -29,153 +39,67 @@ public partial class MainViewModel : ObservableValidator
     [ObservableProperty]
     string logFileName = string.Empty;
 
-    public IObservable<int> ActiveClientCount { get; }
+    FileStream? logFileStream;
+    StreamWriter? logStream;
 
-    public IObservable<int> MessageCount { get; }
+    public IObservable<int> MessageCount 
+        => Observable.FromEventPattern<NotifyCollectionChangedEventHandler, NotifyCollectionChangedEventArgs>(
+                         handler => Messages.CollectionChanged += handler,
+                         handler => Messages.CollectionChanged -= handler)
+                     .Select(_ => Messages.Count)
+                     .StartWith(Messages.Count);
 
-    // [ObservableProperty, NotifyPropertyChangedFor(nameof(ClientHeader))]
-    // int activeClientCount = 0;
+    public ObservableCollection<DisplayMessage> Messages { get; } = [];
 
-    FileStream? logFileStream = null;
-    StreamWriter? logStream = null;
-
-    IServer<IClient>? server = null;
-    
-
-    readonly ObservableCollection<FormatedMessage> messages = [];
-    public FlatTreeDataGridSource<FormatedMessage>? Messages { get; }
-
-    public ObservableCollection<ClientVM> Clients { get; } = [];
-    public FlatTreeDataGridSource<ClientVM>? Clients2 { get; }
+    public ClientManager ClientManager { get; }
 
     #region Constructors
 
-    public MainViewModel()
+    public MainViewModel(IEnumerable<IServer<IClient>> servers, IOptions<MainViewModelOptions> options, ApiTestManager testingManager, ClientManager clientManager)
     {
-        _ = this.TestSubmissionClient.DefaultRequestHeaders.UserAgent.TryParseAdd(UserAgent)
-                || ThrowHelper.ThrowInvalidOperationException<bool>("User agent parse failed.");
+        Servers = new(servers);
+        Server = Servers.FirstOrDefault(server => server.Name == options.Value.Server, Servers.First());
 
-        // build an observer that triggers a client count when a client is added/removed or when the connection status changes
-        ActiveClientCount = Observable.FromEventPattern<NotifyCollectionChangedEventHandler, NotifyCollectionChangedEventArgs>(
-            handler => this.Clients.CollectionChanged += handler,
-            handler => this.Clients.CollectionChanged -= handler)
-            .SelectMany(_ => this.Clients.Select(vm => vm.Client.ConnectionStatusChanges).Merge())
-            .Select(_ => this.Clients.Where(vm => vm.Client.ConnectionStatus is ConnectionStatus.Connected).Count())
-            .StartWith(this.Clients.Count);
+        var localIP = SystemIPs.FirstOrDefault(ip => ip.ToString() == options.Value?.LocalEndPoint?.IP, IPAddress.Any);
+        LocalEndPoint = new(SystemIPs, localIP, options.Value?.LocalEndPoint?.Port);
+        
+        // no extra validation done here, because a null value is okay.
+        _ = IPAddress.TryParse(options.Value?.RemoteEndPoint?.IP, out var ip);
+        RemoteEndPoint = new(ip, options.Value?.RemoteEndPoint?.Port);
 
-        MessageCount = Observable.FromEventPattern<NotifyCollectionChangedEventHandler, NotifyCollectionChangedEventArgs>(
-            handler => this.messages.CollectionChanged += handler,
-            handler => this.messages.CollectionChanged -= handler)
-            .Select(_ => this.messages.Count)
-            .StartWith(this.messages.Count);
+        ApiTestManager = testingManager;
 
-        var star1 = new GridLength(1, GridUnitType.Star);
-        var star2 = new GridLength(2, GridUnitType.Star);
-        var star4 = new GridLength(4, GridUnitType.Star);
-
-        TextTrimming textTrimming = TextTrimming.CharacterEllipsis;
-
-        Messages = new FlatTreeDataGridSource<FormatedMessage>(this.messages) {
-            Columns = {
-                new TextColumn<FormatedMessage, string>("Source", message => message.Source),
-                new TemplateColumn<FormatedMessage>("Timestamp", "TimestampCell"),
-                new TextColumn<FormatedMessage, string>("Type", message => message.Type),
-                new TextColumn<FormatedMessage, string>("Message", message => message.Message.TrimEnd(), star4)
-                // new TemplateColumn<FormatedMessage>("Message", "MessageCell", fourStarLength),
-            }
-        };
-
-        Clients2 = new FlatTreeDataGridSource<ClientVM>(this.Clients) {
-            Columns = {
-                new TemplateColumn<ClientVM>("Source", "EndPointCell", null, star2),
-                new TemplateColumn<ClientVM>("Status", "StatusCell", null, star1),
-                new TemplateColumn<ClientVM>("Age", "ConnectionAgeCell", null, star1),
-                new TemplateColumn<ClientVM>("Recieved", "RecievedCell", null, star1),
-                new TemplateColumn<ClientVM>("Transmitted", "TransmittedCell", null, star1),
-                // new TextColumn<IClient, IObservable<string>>("Status", client => client.Status, fourStarLength),
-            }
-        };
-    }
-
-    public MainViewModel(MainViewModelSettings? serialization) : this()
-    {
-        ServerFactory = AvaliableServers.FirstOrDefault(server => server.Name == serialization?.Server, AvaliableServers.First());
-        ServerIP = SystemIPs.FirstOrDefault(ip => ip.ToString() == serialization?.IP, IPAddress.Any);
-        this.serverPort = serialization?.Port ?? 0;
+        ClientManager = clientManager;
     }
 
     #endregion
 
-    public void PostMessage(FormatedMessage message)
+    public void PostMessage(IDisplayMessage message)
     {
-        this.messages.Add(message);
+        Messages.Add(message.ToDisplayMessage());
         if (LoggingEnabled) {
             this.logStream?.WriteLine($"{message.Source}, {message.Timestamp:s}, {message.Message}");
             this.logStream?.Flush();
         }
     }
 
-    #region On Methods
-
-    public void OnRemoteConnect(object? sender, NewClient message)
-    {
-        this.Clients.Add(new(message.Client));
-        PostMessage(message.ToFormated());
-
-        message.Client.DataTransmitted += OnDataTransmitted;
-        message.Client.DataRecieved += OnDataRecieved;
-        message.Client.Exception += OnClientException;
-    }
-
-    public void OnRemoteDisconnect(object? sender, RemoteDisconnect message)
-    {
-        PostMessage(message.ToFormated());
-
-        message.Client.DataTransmitted -= OnDataTransmitted;
-        message.Client.DataRecieved -= OnDataRecieved;
-        message.Client.Exception -= OnClientException;
-    }
-
-    public void OnDataTransmitted(object? sender, DataTransmission transmission)
-    {
-        if (transmission.Broadcast) return;
-        PostMessage(transmission.ToFormated());
-    }
-
-    public void OnDataRecieved(object? sender, DataReciept reciept) => PostMessage(reciept.ToFormated());
-
-    public void OnClientException(object? sender, Exception exception)
-    {
-        string source = sender is IClient client ? client.RemoteEndPoint?.ToString() ?? string.Empty : string.Empty;
-        PostMessage(new() {
-            Source = source,
-            Message = exception.Message,
-            Timestamp = DateTime.UtcNow.ToString("HH:mm:ss.ffff"),
-            Type = "Exception",
-        });
-    }
-
+    /// <summary>Called when the app exits. Save the current state out to json.</summary>
     public void OnExit(object? sender, ControlledApplicationLifetimeExitEventArgs args)
-        => new MainViewModelSettings(this).SaveSettings();
-
-    #endregion
+        => new MainViewModelOptions() {
+            LocalEndPoint = new(LocalEndPoint.IP?.ToString(), LocalEndPoint.Port),
+            RemoteEndPoint = new(RemoteEndPoint.IP?.ToString(), RemoteEndPoint.Port),
+            Server = Server.Name
+        }.SaveSettings();
 
     #region Bound View Methods
 
-    public void ClearMessages() => this.messages.Clear();
-    public void ClearClients()
+    public void ClearMessages() => Messages.Clear();
+
+    public async Task StartServer()
     {
-        for (int index = this.Clients.Count - 1; index >= 0; index--)
-            if (this.Clients[index].Client.ConnectionStatus is not ConnectionStatus.Connected) 
-                this.Clients.RemoveAt(index);
-    }
-
-    public async Task StartServer() {
-        if (ServerPort is null) throw new NullReferenceException();
-
         if (LoggingEnabled) {
             try {
-                LogFileName = Path.GetFullPath($"{ServerFactory.Name}-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+                LogFileName = Path.GetFullPath($"{Server.Name}-{DateTime.Now:yyyyMMdd-HHmmss}.log");
                 this.logFileStream = File.Create(LogFileName);
                 this.logStream = new StreamWriter(this.logFileStream);
             }
@@ -185,69 +109,41 @@ public partial class MainViewModel : ObservableValidator
             }
         }
 
-        this.server = ServerFactory.Create(ServerIP, ServerPort.Value);
-        this.server.RemoteConnect    += OnRemoteConnect;
-        this.server.RemoteDisconnect += OnRemoteDisconnect;
-        this.server.ServerEvent      += (sender, message) => Dispatcher.UIThread.Post(() => PostMessage(message.ToFormated()));
-        // this.server.ClientEvent  += (sender, message) => Dispatcher.UIThread.Post(() => HandleClientMessage(sender, message));
+        using var clientAdd     = Server.ClientConnections.Subscribe(ClientManager.AddClient);
+        using var clientPost    = Server.ClientConnections.Subscribe(client => PostMessage(new ClientConnection(Server, client)));
+        using var clientPart    = Server.ClientDisconnections.Subscribe(client => PostMessage(new ClientDisconnection(Server, client)));
+        using var clientMessage = ClientManager.ClientMessages.Subscribe(PostMessage);
 
-        var serverTask = this.server.Start().ConfigureAwait(false);
+        var serverTask = Server.Start(LocalEndPoint.EndPoint).ConfigureAwait(false);
 
-        OnPropertyChanged(nameof(ServerRunning));
-        OnPropertyChanged(nameof(CanServerStart));
-
+        // PostMessage(this, new(null, DateTime.Now, EndPointMessageType.SystemStart, SelectedServer.Name));
         await serverTask;
-        // PostMessage(this, new(null, DateTime.Now, EndpointMessageType.SystemStart, SelectedServer.Name));
     }
 
-    public async Task StopServer() {
-        ArgumentNullException.ThrowIfNull(this.server);
-
-        await this.server.Stop();
-
-        this.server.Dispose();
-        this.server = null;
+    public async Task StopServer()
+    {
+        await Server.Stop();
+        Server.Dispose();
 
         this.logStream?.Flush();
         this.logStream?.Dispose();
         this.logFileStream?.Dispose();
-
-        OnPropertyChanged(nameof(ServerRunning));
-        OnPropertyChanged(nameof(CanServerStart));
     }
 
-    readonly HttpClient TestSubmissionClient = new();
-    static readonly string UserAgent = $"{App.AppName}/{App.Version}";
-    static readonly Uri TestSubmissionUrl = new("https://api.protohackers.com/submit");
+    public ApiTestManager ApiTestManager { get; }
 
     public async Task Test()
     {
-        TestRequest request = new(){
-            Problem = ServerFactory.ProblemId,
-            IpAddress = IPAddress.Parse("160.2.91.27").ToString(),
-            Port = ServerPort!.Value,
-        };
+        using var testingDisposable = ApiTestManager.TestingEvents.Subscribe(PostMessage);
 
-        var result = await TestSubmissionClient .PostAsJsonAsync(TestSubmissionUrl, request, TestRequestGenerationContext.Default.TestRequest);
+        await ApiTestManager.CheckProblem(Server, RemoteEndPoint.EndPoint);
     }
 
     #endregion
 
-    public bool CanServerStart => !ServerRunning && ServerPort is not null;
-    public bool ServerRunning => this.server?.Running ?? false;
-
-    public static List<IServerFactory> AvaliableServers { get; } = [.. ServerFactories.Avaliable];
-
-    public static IEnumerable<IPAddress> SystemIPs 
+    static IEnumerable<IPAddress> SystemIPs
         => NetworkInterface.GetAllNetworkInterfaces().Where(netInterface => netInterface.OperationalStatus is OperationalStatus.Up)
                            .SelectMany(netInterface => netInterface.GetIPProperties().UnicastAddresses)
                            .Select(address => address.Address)
                            .Prepend(IPAddress.Any);
 }
-
-[JsonSerializable(typeof(MainViewModelSettings))]
-internal partial class MainVMGenerationContext : JsonSerializerContext;
-
-[JsonSerializable(typeof(TestRequest))]
-[JsonSourceGenerationOptions(NumberHandling = JsonNumberHandling.WriteAsString, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
-internal partial class TestRequestGenerationContext : JsonSerializerContext;

@@ -1,72 +1,73 @@
-﻿using System.Reactive.Linq;
+﻿using ProtoHackersDotNet.Servers.Interfaces.Client.Messages;
+using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using static CommunityToolkit.Diagnostics.ThrowHelper;
+using CI = ProtoHackersDotNet.Servers.Interfaces.Client;
 
 namespace ProtoHackersDotNet.Servers.TcpServer;
 
-public abstract partial class TcpClientBase<TServer, TClient>(TcpClient client, TServer server, CancellationToken token)
-    : IClient, IDisposable
-    where TServer : IServer<TClient>
-    where TClient : IClient
+public abstract partial class TcpClientBase<TServer>(TServer server, TcpClient client, CancellationToken token)
+    : IClient, IDisposable 
+    where TServer : IServer<IClient>
 {
-    protected readonly NetworkStream networkStream = client.GetStream();
+    readonly NetworkStream networkStream = client.GetStream();
+    protected TcpClient Client { get; } = client;
+    protected CancellationToken Token { get; } = token;
     protected TServer server = server;
-    protected TcpClient client = client;
-    protected CancellationToken token = token;
+
+    public int ProblemId => server.ProblemId;
 
     public Guid Id { get; } = Guid.NewGuid();
 
-    public EndPoint? RemoteEndPoint { get; } = client?.Client.RemoteEndPoint;
+    public EndPoint EndPoint { get; } = client.Client.RemoteEndPoint ?? ThrowArgumentNullException<EndPoint>();
 
     public DateTime ConnectedAt { get; } = DateTime.UtcNow;
 
-    public string? StatusExtended { get; private set; }
-
     #region Observables
 
-    public IObservable<ConnectionStatus> ConnectionStatusChanges => connectionStatusSubject.AsObservable();
-    readonly BehaviorSubject<ConnectionStatus> connectionStatusSubject = new(ConnectionStatus.Connected);
-    public ConnectionStatus ConnectionStatus {
-        get => this.connectionStatusSubject.Value;
-        protected set => this.connectionStatusSubject.OnNext(value);
+    readonly BehaviorSubject<ConnectionStatus> connectionStatusObserver = new(CI.ConnectionStatus.Connected);
+    public IObservable<ConnectionStatus> ConnectionStatus => connectionStatusObserver.AsObservable();
+    public ConnectionStatus CurrentConnectionStatus {
+        get => this.connectionStatusObserver.Value;
+        protected set => this.connectionStatusObserver.OnNext(value);
     }
 
-    public IObservable<string?> StatusChanges => statusSubject.AsObservable();
-    readonly BehaviorSubject<string?> statusSubject = new(null);
-    protected string? Status {
-        get => this.statusSubject.Value;
-        set => this.statusSubject.OnNext(value);
+    readonly BehaviorSubject<string?> statusObserver = new(null);
+    public IObservable<string?> Status => statusObserver.AsObservable();
+    protected string? StatusValue {
+        get => this.statusObserver.Value;
+        set => this.statusObserver.OnNext(value);
     }
 
-    public IObservable<ByteSize> TotalBytesTransmittedChanges => totalbytesTransmittedSubject.AsObservable();
-    readonly BehaviorSubject<ByteSize> totalbytesTransmittedSubject = new(ByteSize.FromBytes(0));
-    protected ByteSize TotalBytesTransmitted {
-        get => this.totalbytesTransmittedSubject.Value;
-        set => this.totalbytesTransmittedSubject.OnNext(value);
+    readonly BehaviorSubject<ByteSize> totalbytesTransmittedObserver = new(ByteSize.FromBytes(0));
+    public IObservable<ByteSize> TotalBytesTransmitted => totalbytesTransmittedObserver.AsObservable();
+    protected ByteSize TotalBytesTransmittedValue {
+        get => this.totalbytesTransmittedObserver.Value;
+        set => this.totalbytesTransmittedObserver.OnNext(value);
     }
 
-    public IObservable<ByteSize> TotalBytesRecievedChanges => totalbytesRecievedSubject.AsObservable();
-    readonly BehaviorSubject<ByteSize> totalbytesRecievedSubject = new(ByteSize.FromBytes(0));
-    protected ByteSize TotalBytesRecieved {
-        get => this.totalbytesRecievedSubject.Value;
-        set => this.totalbytesRecievedSubject.OnNext(value);
+    readonly BehaviorSubject<ByteSize> totalbytesRecievedObserver = new(ByteSize.FromBytes(0));
+    public IObservable<ByteSize> TotalBytesRecieved => totalbytesRecievedObserver.AsObservable();
+    protected ByteSize TotalBytesRecievedValue {
+        get => this.totalbytesRecievedObserver.Value;
+        set => this.totalbytesRecievedObserver.OnNext(value);
     }
 
-    #endregion
+    readonly Subject<ITransmission> transmissionObserver = new();
+    public IObservable<ITransmission> Transmissions => transmissionObserver.AsObservable();
+    void NotifyDataTransmission(ITransmission transmission) => this.transmissionObserver.OnNext(transmission);
 
-    #region Events
+    readonly Subject<ITransmission> receiptObserver = new();
+    public IObservable<ITransmission> Receptions => this.receiptObserver.AsObservable();
+    void NotifyDataRecieved(ReadOnlySequence<byte> recievedData)
+    {
+        var message = TranslateRecieption(recievedData) ?? $"{recievedData.ToByteSize()} recieved.";
+        this.receiptObserver.OnNext(new Reception(recievedData, message));
+    }
 
-    public event EventHandler<DataTransmission>? DataTransmitted;
-    void NotifyDataTransmitted(string? message, ByteSize bytesTransmitted, bool broadcast) => DataTransmitted?.Invoke(this, new() {
-        EndPoint = RemoteEndPoint,
-        Broadcast = broadcast,
-        BytesTransmitted = bytesTransmitted,
-        Message = message ?? string.Empty,
-    });
-
-    public event EventHandler<DataReciept>? DataRecieved;
-
-    public event EventHandler<Exception>? Exception;
+    readonly Subject<Exception> exceptionSubject = new();
+    public IObservable<Exception> Exceptions => this.exceptionSubject.AsObservable();
+    void NotifyClientException(Exception exception) => this.exceptionSubject.OnNext(exception);
 
     #endregion
 
@@ -83,58 +84,55 @@ public abstract partial class TcpClientBase<TServer, TClient>(TcpClient client, 
         ReadResult readResult;
 
         try {
-            do {
-                readResult = await reader.ReadAsync(this.token);
-
-                var bytesRecieved = readResult.Buffer.ToByteSize();
-                TotalBytesRecieved += bytesRecieved;
-
-                DataRecieved?.Invoke(this, new() {
-                    EndPoint = RemoteEndPoint,
-                    BytesRecieved = bytesRecieved,
-                    Message = TranslateReciept(readResult.Buffer) ?? string.Empty
-                });
-
+            do {// hold here for a client transmission, then pull in the entire thing
+                readResult = await reader.ReadAsync(Token);
                 var buffer = readResult.Buffer;
-                SequencePosition? lineEnd;
-                do {
-                    lineEnd = FindLineEnd(buffer);
-                    if (lineEnd is null)
-                        break;
 
+                TotalBytesRecievedValue += buffer.ToByteSize();
+                NotifyDataRecieved(buffer);
+
+                SequencePosition? lineEnd;
+                while (buffer.Length > 0) {        // divide the buffer up into lines that can be processed.
+                    lineEnd = FindLineEnd(buffer); // if this returns null, no line end was found.
+                    if (lineEnd is null) break;    // Break and, give back the unused buffer (since it has not been sliced)
+
+                    // process the identified chunk of line.
                     var line = buffer.Slice(0, lineEnd.Value);
                     await ProcessLine(line);
 
+                    // slice beyond the consumed line.
                     buffer = buffer.Slice(lineEnd.Value);
-                } while (buffer.Length > 0);
+                }
 
+                // advanced the buffer forward. The previous slice puts start at the last consumed position.
+                // End will always mark the end of what has been "seen" by the buffer.
                 reader.AdvanceTo(buffer.Start, buffer.End);
 
+                // looping with a partially consumed buffer is fine, but if the client disconnets while
+                // there is still data in the buffer, we recieved an incomplete message.
                 if (readResult.IsCompleted && !readResult.Buffer.IsEmpty)
                     ThrowInvalidDataException("Incomplete message.");
             } while (!readResult.IsCompleted);
 
-            ConnectionStatus = ConnectionStatus.Disconnected;
+            CurrentConnectionStatus = CI.ConnectionStatus.Disconnected;
         }
         catch (Exception exception) {
             await OnException(exception);
 
-            // this.client.GetStream().Close();
-            // this.client.Close();
+            CurrentConnectionStatus = CI.ConnectionStatus.Terminated;
 
-            ConnectionStatus = ConnectionStatus.Terminated;
-            StatusExtended = exception.Message;
-
-            Exception?.Invoke(this, exception);
+            NotifyClientException(exception);
         }
         finally {
             await OnDisconnect();
             await reader.CompleteAsync();
-            this.client.Close();
+            this.Client.Close();
+            this.connectionStatusObserver.OnCompleted();
+            Dispose();
         }
     }
 
-    protected abstract string? TranslateReciept(ReadOnlySequence<byte> buffer);
+    protected abstract string? TranslateRecieption(ReadOnlySequence<byte> buffer);
 
     /// <summary>When overridden by a child, performs class specific behavior when a client connects.
     /// Base class does nothing.</summary>
@@ -165,37 +163,28 @@ public abstract partial class TcpClientBase<TServer, TClient>(TcpClient client, 
     /// <returns>A task that represents completion of this transmission.</returns>
     public async Task Transmit(ITransmission transmission)
     {
-        await networkStream.WriteAsync(transmission.Data, this.token);
+        await networkStream.WriteAsync(transmission.Data, this.Token);
 
         var bytesTransmitted = transmission.Data.ToByteSize();
-        TotalBytesTransmitted += bytesTransmitted;
+        TotalBytesTransmittedValue += bytesTransmitted;
 
-        NotifyDataTransmitted(transmission.Translation, bytesTransmitted, transmission.Broadcast);
-    }
-
-    public async Task Transmit(ReadOnlyMemory<byte> data, string translation, bool broadcast)
-    {
-        await networkStream.WriteAsync(data, this.token);
-
-        var bytesTransmitted = data.ToByteSize();
-        TotalBytesTransmitted += bytesTransmitted;
-
-        NotifyDataTransmitted(translation, bytesTransmitted, broadcast);
+        NotifyDataTransmission(transmission);
     }
 
     /// <summary>Transmits <paramref name="data"/> without attempting to translate it for messaging.</summary>
     /// <param name="data">The data to transmit.</param>
     /// <returns>A task that represents completion of the transmission.</returns>
-    public async Task Transmit(ReadOnlySequence<byte> data, bool broadcast)
+    public async Task Transmit(ReadOnlySequence<byte> data, bool broadcast, string? message = null)
     {
         var position = data.Start;
         while (data.TryGet(ref position, out var memory))
-            await networkStream.WriteAsync(memory, this.token);
+            await networkStream.WriteAsync(memory, this.Token);
 
         var bytesTransmitted = data.ToByteSize();
-        TotalBytesTransmitted += bytesTransmitted;
+        TotalBytesTransmittedValue += bytesTransmitted;
 
-        NotifyDataTransmitted($"{bytesTransmitted} transmitted.", bytesTransmitted, broadcast);
+        Transmission transmission = new(data, $"{bytesTransmitted} transmitted.", broadcast);
+        NotifyDataTransmission(transmission);
     }
 
     #endregion
@@ -205,6 +194,18 @@ public abstract partial class TcpClientBase<TServer, TClient>(TcpClient client, 
         GC.SuppressFinalize(this);
         this.networkStream.Flush();
         this.networkStream.Dispose();
-        this.client.Dispose();
+        this.Client.Dispose();
+    }
+}
+
+public class ObservableProperty<T>(T initialValue)
+{
+    readonly BehaviorSubject<T> subject = new(initialValue);
+
+    public IObservable<T> Observable => subject.AsObservable();
+
+    public T Value {
+        get => subject.Value;
+        set => subject.OnNext(value);
     }
 }

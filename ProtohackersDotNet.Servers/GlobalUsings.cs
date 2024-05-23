@@ -18,5 +18,5 @@ global using ByteSizeLib;
 
 global using ProtoHackersDotNet.Servers.Helpers;
 global using ProtoHackersDotNet.Servers.TcpServer;
-global using ProtoHackersDotNet.Servers.Interface.Client;
-global using ProtoHackersDotNet.Servers.Interface.Server;
+global using ProtoHackersDotNet.Servers.Interfaces.Client;
+global using ProtoHackersDotNet.Servers.Interfaces.Server;

@@ -1,153 +1,109 @@
-﻿using System.IO;
-using CommunityToolkit.Diagnostics;
+﻿using Microsoft.Extensions.Options;
 using ProtoHackersDotNet.AsciiString;
+using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace ProtoHackersDotNet.Servers.BudgetChat;
 
-public sealed class BudgetChatServer(IPAddress address, ushort port)
-    : TcpServer<BudgetChatServer, BudgetChatClient>(address, port), IServer<BudgetChatClient>
+public sealed partial class BudgetChatServer(IOptions<BudgetChatServerOptions> options) 
+    : TcpServerBase<BudgetChatClient>, IServer<BudgetChatClient>
 {
     public const byte LINE_DELIMITER = (byte) '\n';
+    public const byte SPACE_DELIMITER = (byte) ' ';
     public const byte SYSTEM_NOTICE_START_TOKEN = (byte) '*';
 
-    public static string ServerName => "BudgetChat";
-    public static int ProblemId => 3;
+    public override string Name => "BudgetChat";
+    public override int ProblemId => 3;
 
-    protected override BudgetChatServer Instance => this;
+    int lineBufferLength = int.Min(1024, options.Value.MaxMessageLength);
 
-    public string WelcomeMessage { init => WelcomeMessageAscii = new(value); }
-    internal Ascii WelcomeMessageAscii { get; private init; } = new("Welcome to budget chat, please enter your name: \n" );
+    protected override BudgetChatClient CreateClient(TcpClient client, CancellationToken token) 
+        => new(this, client, token);
 
-    #region system notices
+    #region System notices
 
-    public string NameDelimiter { init => nameDelimiterAscii = new(value); }
-    Ascii nameDelimiterAscii = new(", ");
+    internal ascii WelcomeMessage { get; } = options.Value.WelcomeMessage.TrimEnd().ToAscii() + LINE_DELIMITER;
+    readonly ascii nameDelimiter = options.Value.NameDelimiter.ToAscii();
+    readonly SystemNotice presenceNotice = SystemNotice.From(options.Value.PresenceNotice.TrimEnd());
+    readonly SystemNotice joinNotice = SystemNotice.From(options.Value.JoinNotice.TrimEnd());
+    readonly SystemNotice partNotice = SystemNotice.From(options.Value.PartNotice.TrimEnd());
+    readonly PrefixPostfixAscii chatNotice = PrefixPostfixAscii.From("[{n}] ", ChatBroadcastRegex());
 
-    /// <summary>Prefix of the notice detailing the joined users in the chat. Must begin with '*".</summary>
-    public BudgetChatSystemNotice PresenceNotice { get; init; } = "* Present in the room: ";
-    
+    [GeneratedRegex(@"(^\[){n}(] )$")]
+    private static partial Regex ChatBroadcastRegex();
+
     /// <summary>Gets a formatted AsciiMessage detailing the presence joined users, omitting <paramref name="joiner"/>.</summary>
     /// <param name="joiner">The user who joined, and should be omitted from this message.</param>
     /// <returns>A properly formatted message, listing joined users omitting <paramref name="joiner"/>.</returns>
-    internal Ascii GetPresentNotice(BudgetChatClient joiner)
+    internal ascii GetPresentNotice(BudgetChatClient joiner)
     {
-        using ValueAsciiBuilder builder = new();
-        builder.Append(PresenceNotice.Value);
-        var users = JoinedUsers.Except(joiner).Select(connecetion => connecetion.ChatName!.Value.Value);
-        builder.AppendJoin(nameDelimiterAscii, users);
-        builder.Append((byte) '\n');
+        using ValueAsciiBuilder builder = new(this.lineBufferLength);
+        builder.Append(presenceNotice.Value.Prefix);
+        var users = JoinedClients.Except(joiner).Select(connecetion => connecetion.UserName!.Value.Value);
+        builder.AppendJoin(nameDelimiter, users);
+        builder.Append(presenceNotice.Value.Postfix);
+        builder.Append(LINE_DELIMITER);
         return builder.ToAscii();
     }
-
-    /// <summary>Prefix of the notice to display when a user joins the chat. Must begin with '*'.</summary>
-    public BudgetChatSystemNotice JoinNotice { get; init; } = "* Joins the chat: ";
-
-    /// <summary>Gets a formated message announcing the join of <paramref name="joiner"/>.</summary>
-    /// <param name="joiner">The user joining the chat.</param>
-    /// <returns>A formated chat message announcing the join of <paramref name="joiner"/>.</returns>
-    Ascii GetJoinMessage(BudgetChatClient joiner)
-    {
-        using ValueAsciiBuilder builder = new();
-        builder.Append(JoinNotice.Value);
-        builder.Append(joiner.ChatName!.Value.Value);
-        builder.Append((byte) '\n');
-        return builder.ToAscii();
-    }
-
-    /// <summary>An enumeration of all joined users.</summary>
-    public IEnumerable<BudgetChatClient> JoinedUsers
-        => Clients.Where(client => client.State is BudgetChatClientState.Joined);
-
-    /// <summary>Broadcasts the join message to all connected users except <paramref name="joiner"/>.</summary>
-    /// <param name="joiner">The user who's join to announce.</param>
-    /// <returns>A <see cref="Task"/> that indicates completion of the broadcast.</returns>
-    public async Task BroadcastJoin(BudgetChatClient joiner) 
-        => await Broadcast(JoinedUsers.Except(joiner), GetJoinMessage(joiner).ToTransmission(true));
-
-    public async Task BroadcastChat(BudgetChatClient chatter, AsciiTransmission message)
-        => await Broadcast(JoinedUsers.Except(chatter), message);
-
-    /// <summary>Prefix of the notice to display when a user leaves the chat. Must begin with '*'.</summary>
-    public BudgetChatSystemNotice PartNotice { get; init; } = "* Leaves the chat: ";
-
-    Ascii GetPartMessage(BudgetChatClient leaver)
-    {
-        using ValueAsciiBuilder builder = new();
-        builder.Append(PartNotice.Value);
-        builder.Append(leaver.ChatName!.Value.Value);
-        builder.Append((byte) '\n');
-        return builder.ToAscii();
-    }
-
-    public async Task BroadcastPart(BudgetChatClient leaver)
-        => await Broadcast(JoinedUsers.Except(leaver), GetPartMessage(leaver).ToTransmission(true));
 
     #endregion System Notices
 
-    public int MaxNameLength
-    {
-        private get => maxNameLength;
-        init
-        {
-            Guard.IsGreaterThan(value, MIN_MAX_NAME_LENGTH);
-            maxNameLength = value;
-        }
-    }
-    int maxNameLength = 16;
-    const int MIN_MAX_NAME_LENGTH = 16;
-    const int MIN_NAME_LENGTH = 1;
+    /// <summary>An enumeration of all joined users.</summary>
+    public IEnumerable<BudgetChatClient> JoinedClients
+        => Clients.Where(client => client.State is BudgetChatClientState.Joined);
 
-    // public Ascii ValidateName(ReadOnlySequence<byte> nameSequence)
-    // {
-    //     Ascii name = new(nameSequence);
-    //     for (int index = 0; index < name.Length; index++) {
-    //         if (!char.IsAsciiLetterOrDigit((char) name[index]))
-    //             throw new InvalidDataException("Non alphanumeric character found.");
-    //     }
-    // 
-    //     Guard.IsBetweenOrEqualTo(nameSequence.Length, MIN_NAME_LENGTH, MaxNameLength);
-    // 
-    //     return Clients.Any(client => client.ChatName == name)
-    //         ? ThrowFormatException<Ascii>($"User with name \"{name}\" is already connected.\n")
-    //         : name;
-    // }
+    #region Broadcasts
 
-    public int MaxMessageLength
+    /// <summary>Broadcasts the join message to all connected users except <paramref name="sender"/>.</summary>
+    /// <param name="sender">The user who's join to announce.</param>
+    /// <returns>A <see cref="Task"/> that indicates completion of the broadcast.</returns>
+    async Task BroadcastMessage(BudgetChatClient sender, PrefixPostfixAscii format)
     {
-        private get => maxMessageLength;
-        init
-        {
-            Guard.IsGreaterThan(value, MIN_MAX_MESSAGE_LENGTH);
-            maxMessageLength = value;
-        }
+        var message = FormatNotice(sender.UserName!.Value, format);
+        await Broadcast(JoinedClients.Except(sender), message.ToTransmission(true));
     }
 
-    int maxMessageLength = MIN_MAX_MESSAGE_LENGTH;
-    const int MIN_MAX_MESSAGE_LENGTH = 1000;
-
-    static readonly Ascii ChatBroadcastNamePrefix = new("[");
-    static readonly Ascii ChatBroadcastNamePostfix = new("] ");
-
-    internal Ascii FormatChatMessage(BudgetChatClient sender, ReadOnlySequence<byte> chatSequence)
+    public async Task BroadcastJoin(BudgetChatClient joiner) => await BroadcastMessage(joiner, joinNotice.Value);
+    public async Task BroadcastPart(BudgetChatClient leaver) => await BroadcastMessage(leaver, partNotice.Value);
+    public async Task BroadcastChat(BudgetChatClient chatter, ReadOnlySequence<byte> message)
     {
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(chatSequence.Length, MaxMessageLength);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(message.Length, options.Value.MaxMessageLength);
+        ArgumentNullException.ThrowIfNull(chatter.UserName);
+        var chatMessage = FormatChat(chatter.UserName.Value, message);
+        await Broadcast(JoinedClients.Except(chatter), chatMessage.ToTransmission(true));
+    }
 
-        using ValueAsciiBuilder builder = new(maxMessageLength);
-
-        builder.Append(ChatBroadcastNamePrefix);
-        builder.Append(sender.ChatName!.Value.Value);
-        builder.Append(ChatBroadcastNamePostfix);
-        builder.Append(chatSequence);
+    ascii FormatNotice(AsciiName name, PrefixPostfixAscii notice)
+    {
+        using ValueAsciiBuilder builder = new(stackalloc byte[this.lineBufferLength]);
+        builder.Append(notice.Prefix);
+        builder.Append(name.Value);
+        builder.Append(notice.Postfix);
         builder.Append(LINE_DELIMITER);
-
         return builder.ToAscii();
     }
 
-    public static IServer<BudgetChatClient> Create(IPAddress address, ushort port) => new BudgetChatServer(address, port);
-    protected override BudgetChatClient CreateClient(TcpClient client, CancellationToken token)
-        => new(client, this, token);
+    ascii FormatChat(AsciiName name, ReadOnlySequence<byte> message)
+    {
+        using ValueAsciiBuilder builder = new(stackalloc byte[this.lineBufferLength]);
+        builder.Append(this.chatNotice.Prefix);
+        builder.Append(name.Value);
+        builder.Append(this.chatNotice.Postfix);
+        builder.Append(message);
+        builder.Append(LINE_DELIMITER);
+        return builder.ToAscii();
+    }
 
-    public static string Description => descriptionData.Value;
-    static readonly string descriptionPath = Path.Combine(ServerName, ServerName + ".md");
-    static readonly Lazy<string> descriptionData = new(() => File.ReadAllText(descriptionPath));
+    #endregion 
+
+    const int MIN_NAME_LENGTH = 1;
+
+    public AsciiName ValidateName(AsciiName name)
+    {
+        Guard.IsBetweenOrEqualTo(name.Value.Length, MIN_NAME_LENGTH, options.Value.MaxNameLength);
+
+        return Clients.Any(client => client.UserName is AsciiName clientName && clientName.Value == name)
+            ? ThrowHelper.ThrowInvalidOperationException<AsciiName>($"User with name \"{name}\" is already connected.\n")
+            : name;
+    }
 }
