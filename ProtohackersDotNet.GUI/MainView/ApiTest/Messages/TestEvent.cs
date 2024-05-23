@@ -1,4 +1,4 @@
-﻿using ProtoHackersDotNet.GUI.MainView.ApiTest.ApiRequests;
+﻿using ProtoHackersDotNet.GUI.MainView.ApiTest.ApiMessages;
 using ProtoHackersDotNet.Servers.Interfaces;
 
 namespace ProtoHackersDotNet.GUI.MainView.ApiTest.Messages;

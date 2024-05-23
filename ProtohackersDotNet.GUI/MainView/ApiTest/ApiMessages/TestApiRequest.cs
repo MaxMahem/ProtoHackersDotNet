@@ -1,7 +1,7 @@
 ﻿using System.Text.Json.Serialization;
 using ProtoHackersDotNet.GUI.Helpers;
 
-namespace ProtoHackersDotNet.GUI.MainView.ApiTest.ApiRequests;
+namespace ProtoHackersDotNet.GUI.MainView.ApiTest.ApiMessages;
 
 public class TestApiRequest
 {

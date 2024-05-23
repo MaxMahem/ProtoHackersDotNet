@@ -1,6 +1,6 @@
 ﻿using System.Globalization;
 
-namespace ProtoHackersDotNet.GUI.MainView.ApiTest.ApiRequests;
+namespace ProtoHackersDotNet.GUI.MainView.ApiTest.ApiMessages;
 
 public class ApiDateTimeConverter : JsonConverter<DateTime>
 {

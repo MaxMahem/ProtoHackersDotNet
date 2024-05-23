@@ -1,8 +1,6 @@
-﻿using System.Text.Json.Serialization;
+﻿namespace ProtoHackersDotNet.GUI.MainView.ApiTest.ApiMessages;
 
-namespace ProtoHackersDotNet.GUI.MainView.ApiTest.ApiRequests;
-
-public class ApiCheckResponse
+public class ApiCheckResponse : IApiResponse
 {
     [JsonPropertyName("checkstatus")]
     public required CheckStatus CheckStatus { get; init; }
@@ -23,15 +21,7 @@ public class ApiCheckResponse
     public required int UserId { get; init; }
 }
 
-public static class ResultCheckResponseHelper
+public interface IApiResponse
 {
-    public static DisplayMessage CompletedResponseToFormatedMessage(this ApiCheckResponse response, int problemId, Uri api)
-        => new()
-        {
-            ProblemId = problemId,
-            Source = api.ToString(),
-            Timestamp = response.FinishedAt.ToString() ?? ThrowHelper.ThrowArgumentNullException<string>(),
-            Type = response.Status.ToString(),
-            Message = "Testing finished."
-        };
+    ResponseStatus Status { get; }
 }

@@ -26,14 +26,8 @@ public partial class App : Application
     {
         Name = AppName;
 
-        // Line below is needed to remove Avalonia data validation.
-        // Without this line you will get duplicate validations from both Avalonia and CT
-        BindingPlugins.DataValidators.RemoveAt(0);
-
         var serviceProvider = ConfigureServices(new ServiceCollection()).BuildServiceProvider();
         var mainVM = serviceProvider.GetService<MainViewModel>() ?? ThrowHelper.ThrowArgumentNullException<MainViewModel>();
-
-        // var thing = serviceProvider.GetService<IOptions<ProblemTestingManagerOptions>>();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) {
             desktop.MainWindow = new MainWindow { DataContext = mainVM };
@@ -53,8 +47,8 @@ public partial class App : Application
                 .AddHttpClient<ApiTestManager>(client => client.DefaultRequestHeaders.UserAgent.Add(userAgent));
 
         var config = new ConfigurationBuilder().SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
-                                               .AddJsonFile("appsettings.json", true)
-                                               .AddJsonFile(MainViewModelOptions.SETTINGS_PATH, true).Build();
+                                               .AddJsonFile("appsettings.json", optional: false)
+                                               .AddJsonFile(MainViewModelOptions.SETTINGS_PATH, optional: true).Build();
 
         services.AddOptions<ApiTestManagerOptions>().Bind(config.GetSection(nameof(ApiTestManagerOptions)));
         services.AddOptions<MainViewModelOptions>().Bind(config.GetSection(nameof(MainViewModelOptions)));

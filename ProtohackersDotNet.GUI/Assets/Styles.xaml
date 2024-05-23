@@ -13,6 +13,7 @@
 					<TabItem Header="Tab1">Tab1</TabItem>
 					<TabItem Header="Tab2">Tab2</TabItem>
 				</TabControl>
+				<Button Classes="Green">Hallo</Button>
 			</StackPanel>
 		</Border>
 	</Design.PreviewWith>
@@ -124,5 +125,16 @@
 	</Style>
 	<Style Selector="TextBlock.terminated">
 		<Setter Property="Foreground" Value="{DynamicResource SystemControlErrorTextForegroundBrush}" />
+	</Style>
+
+	<Style Selector="Button.Green">
+		<Setter Property="Background">
+			<Setter.Value>
+				<LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+					<GradientStop Offset="0" Color="Green" />
+					<GradientStop Offset="1" Color="Blue" />
+				</LinearGradientBrush>
+			</Setter.Value>
+		</Setter>
 	</Style>
 </Styles>

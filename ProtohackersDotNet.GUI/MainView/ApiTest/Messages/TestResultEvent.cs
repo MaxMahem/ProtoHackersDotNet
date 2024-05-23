@@ -1,8 +1,8 @@
-﻿using ProtoHackersDotNet.GUI.MainView.ApiTest.ApiRequests;
+﻿using ProtoHackersDotNet.GUI.MainView.ApiTest.ApiMessages;
 
 namespace ProtoHackersDotNet.GUI.MainView.ApiTest.Messages;
 
-public class TestResultMessage(IServer server, Uri api, ApiCheckResponse response) : TestEvent(server, api)
+public class TestResultEvent(IServer server, Uri api, ApiCheckResponse response) : TestEvent(server, api)
 {
     public override DisplayMessageType MessageType => DisplayMessageType.TestResult;
 

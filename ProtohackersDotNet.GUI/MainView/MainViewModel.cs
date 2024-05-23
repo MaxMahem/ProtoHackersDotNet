@@ -83,6 +83,24 @@ public partial class MainViewModel : ObservableValidator
         }
     }
 
+    public void PostException(Exception exception)
+    {
+        Messages.Add(exception.ToDisplayMessage());
+        if (LoggingEnabled) {
+            this.logStream?.WriteLine($"{exception.Source}, {DateTime.UtcNow:s}, {exception.Message}");
+            this.logStream?.Flush();
+        }
+    }
+
+    public void PostMessage(DisplayMessage message)
+    {
+        Messages.Add(message);
+        if (LoggingEnabled) {
+            this.logStream?.WriteLine($"{message.Source}, {message.Timestamp:s}, {message.Message}");
+            this.logStream?.Flush();
+        }
+    }
+
     /// <summary>Called when the app exits. Save the current state out to json.</summary>
     public void OnExit(object? sender, ControlledApplicationLifetimeExitEventArgs args)
         => new MainViewModelOptions() {
@@ -132,12 +150,8 @@ public partial class MainViewModel : ObservableValidator
 
     public ApiTestManager ApiTestManager { get; }
 
-    public async Task Test()
-    {
-        using var testingDisposable = ApiTestManager.TestingEvents.Subscribe(PostMessage);
-
-        await ApiTestManager.CheckProblem(Server, RemoteEndPoint.EndPoint);
-    }
+    public void Test() => _ = ApiTestManager.TestProblem(Server, RemoteEndPoint.EndPoint)
+                                            .Subscribe(PostMessage, PostException);
 
     #endregion
 
