@@ -2,7 +2,7 @@
 
 public abstract class ServerEvent(IServer server) : IDisplayMessage
 {
-    public int ProblemId { get; } = server.ProblemId;
+    public Problem Problem { get; } = server.Problem;
     public IServer Server { get; } = server;
     public EndPoint? EndPoint { get; } = server.EndPoint;
     public string Source { get; } = server.EndPoint?.ToString() ?? string.Empty;

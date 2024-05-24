@@ -16,7 +16,7 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
 
     protected override async Task OnConnect()
     {
-        await Transmit(server.WelcomeMessage.ToTransmission(false));
+        await Transmit(Server.WelcomeMessage.ToTransmission(false));
         State = BudgetChatClientState.Welcome;
     }
 
@@ -32,7 +32,7 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
     protected override async Task OnDisconnect()
     {
         if (State == BudgetChatClientState.Joined)
-            await server.BroadcastPart(this);
+            await Server.BroadcastPart(this);
         State = BudgetChatClientState.Parted;
     }
 
@@ -52,12 +52,12 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
                 State = BudgetChatClientState.Joined;
                 StatusValue = $"Joined: {UserName.Value}";
 
-                await server.BroadcastJoin(this);
+                await Server.BroadcastJoin(this);
 
-                await Transmit(server.GetPresentNotice(this).ToTransmission(false));
+                await Transmit(Server.GetPresentNotice(this).ToTransmission(false));
                 break;
             case BudgetChatClientState.Joined:
-                await server.BroadcastChat(this, line);
+                await Server.BroadcastChat(this, line);
                 break;
             default:
                 throw new InvalidOperationException();

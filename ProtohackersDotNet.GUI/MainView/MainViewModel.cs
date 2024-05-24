@@ -21,18 +21,6 @@ public partial class MainViewModel : ObservableValidator
     public SelectableEndPoint LocalEndPoint { get; }
     public TextEndPointVM RemoteEndPoint { get; }
 
-    //[ObservableProperty]
-    //public IPAddress localIP = IPAddress.Any;
-
-    // const ushort DEFAULT_PORT_NUMBER = 0;
-    //ushort localPort = DEFAULT_PORT_NUMBER;
-    //public ushort? LocalPort { 
-    //    get => this.localPort;
-    //    set => this.localPort = value ?? DEFAULT_PORT_NUMBER;
-    //}
-
-    //IPEndPoint LocalEndPoint => new IPEndPoint(LocalIP, this.localPort);
-
     [ObservableProperty]
     bool loggingEnabled = false;
 
@@ -59,6 +47,9 @@ public partial class MainViewModel : ObservableValidator
     {
         Servers = new(servers);
         Server = Servers.FirstOrDefault(server => server.Name == options.Value.Server, Servers.First());
+
+        // this should trigger all our server descriptions to load lazily.
+        _ = Task.WhenAll(Servers.Select(server => Task.Run(() => _ = server.Problem.Description)));
 
         var localIP = SystemIPs.FirstOrDefault(ip => ip.ToString() == options.Value?.LocalEndPoint?.IP, IPAddress.Any);
         LocalEndPoint = new(SystemIPs, localIP, options.Value?.LocalEndPoint?.Port);
@@ -92,19 +83,10 @@ public partial class MainViewModel : ObservableValidator
         }
     }
 
-    public void PostMessage(DisplayMessage message)
-    {
-        Messages.Add(message);
-        if (LoggingEnabled) {
-            this.logStream?.WriteLine($"{message.Source}, {message.Timestamp:s}, {message.Message}");
-            this.logStream?.Flush();
-        }
-    }
-
     /// <summary>Called when the app exits. Save the current state out to json.</summary>
     public void OnExit(object? sender, ControlledApplicationLifetimeExitEventArgs args)
         => new MainViewModelOptions() {
-            LocalEndPoint = new(LocalEndPoint.IP?.ToString(), LocalEndPoint.Port),
+            LocalEndPoint  = new(LocalEndPoint.IP?.ToString(),  LocalEndPoint.Port),
             RemoteEndPoint = new(RemoteEndPoint.IP?.ToString(), RemoteEndPoint.Port),
             Server = Server.Name
         }.SaveSettings();

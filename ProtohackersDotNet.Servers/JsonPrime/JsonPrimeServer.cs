@@ -2,9 +2,7 @@
 
 public sealed class JsonPrimeServer : TcpServerBase<JsonPrimeClient>
 {
-    public override string Name => "JsonPrime";
-
-    public override int ProblemId => 1;
+    public override Problem Problem { get; } = new(1, "JsonPrime");
 
     protected override JsonPrimeClient CreateClient(TcpClient client, CancellationToken token) 
         => new(this, client, token);

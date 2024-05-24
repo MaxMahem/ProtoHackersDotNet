@@ -2,7 +2,7 @@
 
 public interface IDisplayMessage
 {
-    int ProblemId { get; }
+    Problem Problem { get; }
     string Source { get; }
     DisplayMessageType MessageType { get; }
     string Type => MessageType.ToString();

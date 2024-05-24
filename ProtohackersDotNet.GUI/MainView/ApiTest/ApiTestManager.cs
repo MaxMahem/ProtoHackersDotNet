@@ -6,7 +6,6 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
-using System.Linq;
 using ProtoHackersDotNet.GUI.MainView.ApiTest.ApiMessages;
 using ProtoHackersDotNet.GUI.MainView.ApiTest.Messages;
 
@@ -32,7 +31,7 @@ public class ApiTestManager(IHttpClientFactory clientFactory, IOptions<ApiTestMa
     async Task ObserveTest(IServer server, IPEndPoint endPoint, IObserver<TestEvent> observer, CancellationToken token)
     {
         TestApiRequest apiTestRequest = new(){
-            Problem = server.ProblemId,
+            Problem = server.Problem.Id,
             Ip = endPoint.Address,
             Port = (ushort) endPoint.Port,
         };
@@ -67,16 +66,17 @@ public class ApiTestManager(IHttpClientFactory clientFactory, IOptions<ApiTestMa
         observer.OnCompleted();
     }
 
+    /// <summary>Polls the ProtoHacker test server for a response to our test request. Waiting between each request 
+    /// to not flood the server.</summary>
+    /// <returns>An async enumerable of responses from the server.</returns>
     async IAsyncEnumerable<ApiCheckResponse> PollServer(HttpClient client, [EnumeratorCancellation] CancellationToken token)
     {
-        ApiCheckResponse? checkResponse;
-        do {
-            checkResponse = await client.GetFromJsonAsync(this.options.CheckUrl,
-                        ApiTestsMetadata.Default.ApiCheckResponse, token);
+        while (await client.GetFromJsonAsync(this.options.CheckUrl, ApiTestsMetadata.Default.ApiCheckResponse, token) 
+            is { CheckStatus: CheckStatus.Checking } checkResponse && !token.IsCancellationRequested) {
             yield return checkResponse?.Status is ResponseStatus.Ok ? checkResponse : ThrowResponseError<ApiCheckResponse>();
 
             await Task.Delay(this.options.CheckRetryPeriod, token);
-        } while (checkResponse.CheckStatus is CheckStatus.Checking && !token.IsCancellationRequested);
+        }
     }
 
     async Task<TestRequestApiResponse> RequestTesting(TestApiRequest apiTestRequest, HttpClient client, CancellationToken token)

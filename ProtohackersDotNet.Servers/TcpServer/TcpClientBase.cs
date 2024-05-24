@@ -13,9 +13,8 @@ public abstract partial class TcpClientBase<TServer>(TServer server, TcpClient c
     readonly NetworkStream networkStream = client.GetStream();
     protected TcpClient Client { get; } = client;
     protected CancellationToken Token { get; } = token;
-    protected TServer server = server;
-
-    public int ProblemId => server.ProblemId;
+    public TServer Server { get; } = server;
+    IServer IClient.Server => Server;
 
     public Guid Id { get; } = Guid.NewGuid();
 
@@ -67,6 +66,7 @@ public abstract partial class TcpClientBase<TServer>(TServer server, TcpClient c
 
     readonly Subject<Exception> exceptionSubject = new();
     public IObservable<Exception> Exceptions => this.exceptionSubject.AsObservable();
+
     void NotifyClientException(Exception exception) => this.exceptionSubject.OnNext(exception);
 
     #endregion
@@ -195,17 +195,5 @@ public abstract partial class TcpClientBase<TServer>(TServer server, TcpClient c
         this.networkStream.Flush();
         this.networkStream.Dispose();
         this.Client.Dispose();
-    }
-}
-
-public class ObservableProperty<T>(T initialValue)
-{
-    readonly BehaviorSubject<T> subject = new(initialValue);
-
-    public IObservable<T> Observable => subject.AsObservable();
-
-    public T Value {
-        get => subject.Value;
-        set => subject.OnNext(value);
     }
 }

@@ -2,7 +2,8 @@
 
 public interface IClient : IDisposable
 {
-    int ProblemId { get; }
+    /// <summary>Server this client is a child of.</summary>
+    IServer Server { get; }
 
     /// <summary>Id which uniquely identifies this client.</summary>
     Guid Id { get; }

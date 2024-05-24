@@ -12,10 +12,9 @@ public sealed partial class BudgetChatServer(IOptions<BudgetChatServerOptions> o
     public const byte SPACE_DELIMITER = (byte) ' ';
     public const byte SYSTEM_NOTICE_START_TOKEN = (byte) '*';
 
-    public override string Name => "BudgetChat";
-    public override int ProblemId => 3;
-
     int lineBufferLength = int.Min(1024, options.Value.MaxMessageLength);
+
+    public override Problem Problem { get; } = new(3, "BudgetChat");
 
     protected override BudgetChatClient CreateClient(TcpClient client, CancellationToken token) 
         => new(this, client, token);

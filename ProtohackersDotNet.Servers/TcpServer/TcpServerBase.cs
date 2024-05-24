@@ -1,6 +1,5 @@
 ﻿using System.Reactive.Linq;
 using System.Reactive.Subjects;
-using System.Xml.Linq;
 using static CommunityToolkit.Diagnostics.ThrowHelper;
 
 namespace ProtoHackersDotNet.Servers.TcpServer;
@@ -11,16 +10,8 @@ abstract public class TcpServerBase<TClient> : IServer<TClient>
     TcpListener? listener;
     CancellationTokenSource? cancellationTokenSource;
 
-    public abstract string Name { get; }
-    public abstract int ProblemId { get; }
-
-    public string Description => descriptionCache.Value;
-    readonly Lazy<string> descriptionCache;
-
-    public TcpServerBase()
-    {
-        this.descriptionCache = new(() => File.ReadAllText(Path.Combine(Name, Name + ".md")));
-    }
+    public virtual string Name => Problem.Name;
+    public abstract Problem Problem { get; }
 
     public IPEndPoint? EndPoint => this.listener?.LocalEndpoint as IPEndPoint;
 

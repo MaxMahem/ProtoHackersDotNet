@@ -97,7 +97,7 @@
 				</StackPanel>
 			</StackPanel>
 			<Border BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" BorderThickness="1" CornerRadius="3">
-				<md:MarkdownScrollViewer Markdown="{Binding Server.Description}">
+				<md:MarkdownScrollViewer Markdown="{Binding Server.Problem.Description}">
 					<md:MarkdownScrollViewer.Styles>
 						<Style Selector="ctxt|CTextBlock.Heading1">
 							<Setter Property="FontSize" Value="18"/>

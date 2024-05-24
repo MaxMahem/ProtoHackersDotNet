@@ -2,9 +2,7 @@
 
 public sealed class PriceTrackerServer : TcpServerBase<PriceTrackerClient>
 {
-    public override string Name => "PriceTracker";
-
-    public override int ProblemId => 2;
+    public override Problem Problem { get; } = new(2, "PriceTracker");
 
     protected override PriceTrackerClient CreateClient(TcpClient client, CancellationToken token)
         => new(this, client, token);

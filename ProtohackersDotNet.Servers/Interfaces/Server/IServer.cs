@@ -2,14 +2,10 @@
 
 public interface IServer : IDisposable
 {
-    /// <summary>The name of this server.</summary>
     string Name { get; }
 
-    /// <summary>The Id of the problem this server corresponds to.</summary>
-    int ProblemId { get; }
-
-    /// <summary>The description of the problem this server resolves. In markdown format.</summary>
-    string Description { get; }
+    /// <summary>The problem this server solves.</summary>
+    Problem Problem { get; }
 
     /// <summary>The endpoint this server is listening to.</summary>
     IPEndPoint? EndPoint { get; }

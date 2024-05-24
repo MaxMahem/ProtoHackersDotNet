@@ -5,7 +5,7 @@ namespace ProtoHackersDotNet.GUI.MainView.ApiTest.Messages;
 
 public abstract class TestEvent(IServer server, Uri api) : IDisplayMessage
 {
-    public int ProblemId { get; } = server.ProblemId;
+    public Problem Problem { get; } = server.Problem;
     public Uri Api { get; } = api;
     public virtual string Source => Api.ToString();
     public virtual DateTime Timestamp { get; protected set; } = DateTime.UtcNow;
