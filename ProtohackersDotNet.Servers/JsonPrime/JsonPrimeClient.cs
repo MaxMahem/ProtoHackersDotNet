@@ -1,7 +1,4 @@
-﻿using System.Text;
-using System.Text.Json;
-
-namespace ProtoHackersDotNet.Servers.JsonPrime;
+﻿namespace ProtoHackersDotNet.Servers.JsonPrime;
 
 public sealed class JsonPrimeClient(JsonPrimeServer server, TcpClient client, CancellationToken token)
     : TcpClientBase<JsonPrimeServer>(server, client, token)
@@ -13,24 +10,27 @@ public sealed class JsonPrimeClient(JsonPrimeServer server, TcpClient client, Ca
 
     protected override async Task ProcessLine(ReadOnlySequence<byte> line)
     {
-        var query = ProcessLineQuery(line);
-        // NotifyEvent(ClientEventType.LineTranslation, query.ToString());
-
-        var response = query.Number.IsPrime() ? IsPrime
-                                              : NotPrime;
-        await Transmit(response);
+        try {
+            var response = ProcessLineQuery(line).Number.IsPrime() ? IsPrime
+                                                                   : NotPrime;
+            await Transmit(response);
+        }
+        catch (Exception exception) {
+            ClientException.Throw(exception, this);
+        }
     }
 
-    protected override string TranslateRecieption(ReadOnlySequence<byte> buffer)
+protected override string TranslateReception(ReadOnlySequence<byte> buffer)
         => Encoding.UTF8.GetString(buffer);
 
-    protected override async Task OnException(Exception exception)
+    protected override async Task OnException(Exception exception, CancellationToken token)
         => await Transmit(Malformed);
 
     static PrimeQuery ProcessLineQuery(ReadOnlySequence<byte> line)
     {
         var jsonReader = new Utf8JsonReader(line);
-        return JsonSerializer.Deserialize(ref jsonReader, JsonPrimeMetaData.Default.PrimeQuery).Validate();
+        return JsonSerializer.Deserialize(ref jsonReader, JsonPrimeMetaData.Default.PrimeQuery).Validate()
+            ?? throw new JsonException("Invalid Query");
     }
 
     readonly static CachedUtf8Response Malformed = new("malformed" + (char) LINE_DELIMITER);

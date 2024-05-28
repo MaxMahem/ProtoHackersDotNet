@@ -1,16 +1,15 @@
 ﻿using System.Net;
 using System.Net.NetworkInformation;
 using Spectre.Console;
-using ProtoHackersDotNet.Servers.Interfaces.Server;
-using ProtoHackersDotNet.Servers.Interfaces.Client;
-using ProtoHackersDotNet.Servers.TcpServer;
+using ProtoHackersDotNet.Servers.Interface.Server;
+using ProtoHackersDotNet.Servers.Interface.Client;
 
 static class ServiceSelector
 {
-    static readonly SelectionPrompt<IServerFactory> ServiceSelectionPrompt = new SelectionPrompt<IServerFactory>()
+    static readonly SelectionPrompt<IServer> ServiceSelectionPrompt = new SelectionPrompt<IServer>()
         .Title("Select the service to run:")
-        .AddChoices(ServerRepository.Avaliable)
-        .UseConverter(serviceData => serviceData.Name);
+        // .AddChoices(ServerRepository.Avaliable)
+        .UseConverter(server => server.Name.Value);
 
     static readonly SelectionPrompt<IPAddress> IpAddressPrompt = new SelectionPrompt<IPAddress>()
         .Title("IP Address:")
@@ -22,15 +21,5 @@ static class ServiceSelector
     static readonly TextPrompt<ushort> PortPrompt = new TextPrompt<ushort>("Select Port:")
         .ValidationErrorMessage("[red]Select a value between 0 and 65,535.[/]")
         .DefaultValue((ushort) 0);
-
-    public static IServer<IClient> SelectService(out string name)
-    {
-        var selectedService = AnsiConsole.Prompt(ServiceSelectionPrompt);
-        var ipAddress = AnsiConsole.Prompt(IpAddressPrompt);
-        var port = AnsiConsole.Prompt(PortPrompt);
-        name = selectedService.Name;
-
-        return selectedService.Create(ipAddress, port);
-    }
 }
 

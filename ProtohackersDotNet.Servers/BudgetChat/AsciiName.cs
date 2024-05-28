@@ -7,5 +7,5 @@ namespace ProtoHackersDotNet.Servers.BudgetChat;
 public readonly partial record struct AsciiName
 {
     public static Validation Validate(ascii name) => name.IsAlphanumeric() ? Validation.Ok 
-        : Validation.Invalid("Name is not alphanumeric.");
+        : Validation.Invalid("Name is not alphanumeric");
 }

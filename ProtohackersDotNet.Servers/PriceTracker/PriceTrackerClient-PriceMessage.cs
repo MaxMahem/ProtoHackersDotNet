@@ -2,7 +2,7 @@
 
 public sealed partial class PriceTrackerClient
 {
-    public readonly record struct PriceMessage
+    readonly record struct PriceMessage
     {
         public const int MESSAGE_LENGTH = 9;
 

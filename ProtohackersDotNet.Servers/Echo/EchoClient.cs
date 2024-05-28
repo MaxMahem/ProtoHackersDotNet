@@ -9,5 +9,5 @@ public class EchoClient(EchoServer server, TcpClient client, CancellationToken t
 
     protected override async Task ProcessLine(ReadOnlySequence<byte> line) => await Transmit(line, false);
 
-    protected override string TranslateRecieption(ReadOnlySequence<byte> buffer) => $"{buffer.ToByteSize()} recieved.";
+    protected override string TranslateReception(ReadOnlySequence<byte> buffer) => $"{buffer.ToByteSize()} received";
 }

@@ -1,7 +1,5 @@
 ﻿using Microsoft.Extensions.Options;
 using ProtoHackersDotNet.AsciiString;
-using System.Reflection;
-using System.Text.RegularExpressions;
 
 namespace ProtoHackersDotNet.Servers.BudgetChat;
 
@@ -13,6 +11,8 @@ public sealed partial class BudgetChatServer(IOptions<BudgetChatServerOptions> o
     public const byte SYSTEM_NOTICE_START_TOKEN = (byte) '*';
 
     int lineBufferLength = int.Min(1024, options.Value.MaxMessageLength);
+
+    public override ServerName Name { get; } = ServerName.From(nameof(BudgetChatServer));
 
     public override Problem Problem { get; } = new(3, "BudgetChat");
 
@@ -38,7 +38,7 @@ public sealed partial class BudgetChatServer(IOptions<BudgetChatServerOptions> o
     {
         using ValueAsciiBuilder builder = new(this.lineBufferLength);
         builder.Append(presenceNotice.Value.Prefix);
-        var users = JoinedClients.Except(joiner).Select(connecetion => connecetion.UserName!.Value.Value);
+        var users = JoinedClients.Except(joiner).Select(connection => connection.UserName!.Value.Value);
         builder.AppendJoin(nameDelimiter, users);
         builder.Append(presenceNotice.Value.Postfix);
         builder.Append(LINE_DELIMITER);
@@ -66,8 +66,9 @@ public sealed partial class BudgetChatServer(IOptions<BudgetChatServerOptions> o
     public async Task BroadcastPart(BudgetChatClient leaver) => await BroadcastMessage(leaver, partNotice.Value);
     public async Task BroadcastChat(BudgetChatClient chatter, ReadOnlySequence<byte> message)
     {
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(message.Length, options.Value.MaxMessageLength);
-        ArgumentNullException.ThrowIfNull(chatter.UserName);
+        Guard.IsLessThanOrEqualTo(message.Length, options.Value.MaxMessageLength);
+        Debug.Assert(chatter.UserName is not null);
+
         var chatMessage = FormatChat(chatter.UserName.Value, message);
         await Broadcast(JoinedClients.Except(chatter), chatMessage.ToTransmission(true));
     }
@@ -97,12 +98,11 @@ public sealed partial class BudgetChatServer(IOptions<BudgetChatServerOptions> o
 
     const int MIN_NAME_LENGTH = 1;
 
-    public AsciiName ValidateName(AsciiName name)
-    {
-        Guard.IsBetweenOrEqualTo(name.Value.Length, MIN_NAME_LENGTH, options.Value.MaxNameLength);
-
-        return Clients.Any(client => client.UserName is AsciiName clientName && clientName.Value == name)
-            ? ThrowHelper.ThrowInvalidOperationException<AsciiName>($"User with name \"{name}\" is already connected.\n")
-            : name;
-    }
+    public AsciiName ValidateName(AsciiName name) => name switch {
+        _ when (name is { Value.Length: int length } && length < MIN_NAME_LENGTH) || length > options.Value.MaxNameLength
+            => throw new FormatException($"Length of name ({length}) is not within range [{MIN_NAME_LENGTH}, {options.Value.MaxNameLength}]"),
+        _ when Clients.Any(client => client.UserName is AsciiName clientName && clientName == name)
+            => throw new FormatException($"User with name \"{name}\" is already connected"),
+        _ => name,
+    };
 }

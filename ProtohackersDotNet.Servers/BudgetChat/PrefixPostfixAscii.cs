@@ -1,5 +1,4 @@
 ﻿using ProtoHackersDotNet.AsciiString;
-using System.Text.RegularExpressions;
 
 namespace ProtoHackersDotNet.Servers.BudgetChat;
 

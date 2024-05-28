@@ -1,8 +1,4 @@
-﻿using ProtoHackersDotNet.Servers.Helpers;
-using ProtoHackersDotNet.Servers.Interfaces.Client;
-using System.Text;
-
-namespace ProtoHackersDotNet.Servers.JsonPrime;
+﻿namespace ProtoHackersDotNet.Servers.JsonPrime;
 
 /// <summary>A client message encoded in Utf8, with the string representation cached.</summary>
 public struct CachedUtf8Response(string response) : ITransmission

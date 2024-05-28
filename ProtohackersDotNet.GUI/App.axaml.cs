@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using ProtoHackersDotNet.GUI.MainView;
 using ProtoHackersDotNet.GUI.MainView.Client;
-using ProtoHackersDotNet.GUI.MainView.ApiTest;
+using ProtoHackersDotNet.GUI.MainView.ProtoHackerApi;
 using ProtoHackersDotNet.Servers.Echo;
 using ProtoHackersDotNet.Servers.JsonPrime;
 using ProtoHackersDotNet.Servers.PriceTracker;
@@ -44,13 +44,13 @@ public partial class App : Application
     {
         var userAgent = ProductInfoHeaderValue.Parse($"{AppName}/{Version}");
         services.AddSingleton(userAgent)
-                .AddHttpClient<ApiTestManager>(client => client.DefaultRequestHeaders.UserAgent.Add(userAgent));
+                .AddHttpClient<ProtoHackerApiClient>(client => client.DefaultRequestHeaders.UserAgent.Add(userAgent));
 
         var config = new ConfigurationBuilder().SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                                                .AddJsonFile("appsettings.json", optional: false)
                                                .AddJsonFile(MainViewModelOptions.SETTINGS_PATH, optional: true).Build();
 
-        services.AddOptions<ApiTestManagerOptions>().Bind(config.GetSection(nameof(ApiTestManagerOptions)));
+        services.AddOptions<ProtoHackerApiClientOptions>().Bind(config.GetSection(nameof(ProtoHackerApiClientOptions)));
         services.AddOptions<MainViewModelOptions>().Bind(config.GetSection(nameof(MainViewModelOptions)));
         services.AddOptions<ClientManagerOptions>().Bind(config.GetSection(nameof(ClientManagerOptions)));
         services.AddOptions<BudgetChatServerOptions>().Bind(config.GetSection(nameof(BudgetChatServerOptions)));
@@ -61,7 +61,7 @@ public partial class App : Application
                 .AddSingleton<IServer<IClient>, BudgetChatServer>();
         
         return services.AddSingleton(config)
-                       .AddSingleton<ApiTestManager>()
+                       .AddSingleton<ProtoHackerApiManager>()
                        .AddSingleton<MainViewModel>()
                        .AddSingleton<ClientManager>();
     }

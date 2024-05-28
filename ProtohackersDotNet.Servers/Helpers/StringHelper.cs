@@ -1,6 +1,4 @@
-﻿using System.Text;
-
-namespace ProtoHackersDotNet.Servers.Helpers;
+﻿namespace ProtoHackersDotNet.Servers.Helpers;
 
 public static class StringHelper
 {

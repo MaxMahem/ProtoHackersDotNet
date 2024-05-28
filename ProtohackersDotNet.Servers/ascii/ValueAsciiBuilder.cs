@@ -1,6 +1,4 @@
-﻿using System.Text;
-
-namespace ProtoHackersDotNet.AsciiString;
+﻿namespace ProtoHackersDotNet.AsciiString;
 
 public ref struct ValueAsciiBuilder
 {
@@ -112,7 +110,7 @@ public ref struct ValueAsciiBuilder
 
     public void Append(char c, int count = 1)
     {
-        if (!char.IsAscii(c)) ThrowHelper.ThrowArgumentException($"'{c}' is not a valid ASCII character.");
+        if (!char.IsAscii(c)) ThrowHelper.ThrowArgumentException($"'{c}' is not a valid ASCII character");
         EnsureAdditionalCapacity(count);
 
         this.asciiChars.Slice(this.position, count).Fill((byte) c);

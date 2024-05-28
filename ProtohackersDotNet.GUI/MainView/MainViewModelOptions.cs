@@ -1,8 +1,4 @@
-﻿using ProtoHackersDotNet.GUI.Helpers;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-
-namespace ProtoHackersDotNet.GUI.MainView;
+﻿namespace ProtoHackersDotNet.GUI.MainView;
 
 public record class MainViewModelHolder(MainViewModelOptions MainViewModelOptions);
 

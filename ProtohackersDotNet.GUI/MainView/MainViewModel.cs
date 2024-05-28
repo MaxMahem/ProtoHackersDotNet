@@ -1,13 +1,12 @@
-﻿using System.Threading.Tasks;
-using System.Net.NetworkInformation;
+﻿using System.Net.NetworkInformation;
+using Microsoft.Extensions.Options;
 using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
-using System.Collections.Specialized;
-using ProtoHackersDotNet.GUI.MainView.ApiTest;
-using Microsoft.Extensions.Options;
-using ProtoHackersDotNet.Servers.Interfaces;
 using ProtoHackersDotNet.GUI.MainView.Client;
-using ProtoHackersDotNet.GUI.MainView.Client.Messages;
+using ProtoHackersDotNet.GUI.MainView.ProtoHackerApi;
+using ProtoHackersDotNet.GUI.MainView.Messages;
+using ProtoHackersDotNet.Servers.Interface.Server.Events;
+using ProtoHackersDotNet.Servers.Helpers;
 
 namespace ProtoHackersDotNet.GUI.MainView;
 
@@ -21,32 +20,14 @@ public partial class MainViewModel : ObservableValidator
     public SelectableEndPoint LocalEndPoint { get; }
     public TextEndPointVM RemoteEndPoint { get; }
 
-    [ObservableProperty]
-    bool loggingEnabled = false;
-
-    [ObservableProperty]
-    string logFileName = string.Empty;
-
-    FileStream? logFileStream;
-    StreamWriter? logStream;
-
-    public IObservable<int> MessageCount 
-        => Observable.FromEventPattern<NotifyCollectionChangedEventHandler, NotifyCollectionChangedEventArgs>(
-                         handler => Messages.CollectionChanged += handler,
-                         handler => Messages.CollectionChanged -= handler)
-                     .Select(_ => Messages.Count)
-                     .StartWith(Messages.Count);
-
-    public ObservableCollection<DisplayMessage> Messages { get; } = [];
-
     public ClientManager ClientManager { get; }
 
-    #region Constructors
+    public MessageManager MessageManager { get; } = new();
 
-    public MainViewModel(IEnumerable<IServer<IClient>> servers, IOptions<MainViewModelOptions> options, ApiTestManager testingManager, ClientManager clientManager)
+    public MainViewModel(IEnumerable<IServer<IClient>> servers, IOptions<MainViewModelOptions> options, ProtoHackerApiManager testingManager, ClientManager clientManager)
     {
         Servers = new(servers);
-        Server = Servers.FirstOrDefault(server => server.Name == options.Value.Server, Servers.First());
+        Server = Servers.FirstOrDefault(server => server.Name.Value == options.Value.Server, Servers.First());
 
         // this should trigger all our server descriptions to load lazily.
         _ = Task.WhenAll(Servers.Select(server => Task.Run(() => _ = server.Problem.Description)));
@@ -63,80 +44,49 @@ public partial class MainViewModel : ObservableValidator
         ClientManager = clientManager;
     }
 
-    #endregion
-
-    public void PostMessage(IDisplayMessage message)
-    {
-        Messages.Add(message.ToDisplayMessage());
-        if (LoggingEnabled) {
-            this.logStream?.WriteLine($"{message.Source}, {message.Timestamp:s}, {message.Message}");
-            this.logStream?.Flush();
-        }
-    }
-
-    public void PostException(Exception exception)
-    {
-        Messages.Add(exception.ToDisplayMessage());
-        if (LoggingEnabled) {
-            this.logStream?.WriteLine($"{exception.Source}, {DateTime.UtcNow:s}, {exception.Message}");
-            this.logStream?.Flush();
-        }
-    }
-
     /// <summary>Called when the app exits. Save the current state out to json.</summary>
     public void OnExit(object? sender, ControlledApplicationLifetimeExitEventArgs args)
         => new MainViewModelOptions() {
             LocalEndPoint  = new(LocalEndPoint.IP?.ToString(),  LocalEndPoint.Port),
             RemoteEndPoint = new(RemoteEndPoint.IP?.ToString(), RemoteEndPoint.Port),
-            Server = Server.Name
+            Server = Server.Name.Value
         }.SaveSettings();
 
     #region Bound View Methods
 
-    public void ClearMessages() => Messages.Clear();
-
-    public async Task StartServer()
+    /// <summary>Starts the currently selected server.</summary>
+    public void StartServer()
     {
-        if (LoggingEnabled) {
-            try {
-                LogFileName = Path.GetFullPath($"{Server.Name}-{DateTime.Now:yyyyMMdd-HHmmss}.log");
-                this.logFileStream = File.Create(LogFileName);
-                this.logStream = new StreamWriter(this.logFileStream);
-            }
-            catch (Exception exception) {
-                LogFileName = $"{exception.Message}";
-                LoggingEnabled = false;
-            }
+        var serverEvents = Server.Start(LocalEndPoint.EndPoint);
+        serverEvents.OfType<ClientConnectionEvent>().Subscribe(SubscribeClient, Stub.IgnoreError).DiscardDisposable();
+        MessageManager.SubscribeToStream(serverEvents, MessageVM.FromSeverEvent, Server.Name.Value);
+        serverEvents.Connect().DiscardDisposable();
+
+        void SubscribeClient(ClientConnectionEvent clientEvent)
+        {
+            ClientManager.AddClient(clientEvent.Client);
+            MessageManager.SubscribeToStream(clientEvent.Client.Events, MessageVM.FromClientEvent, 
+                clientEvent.Client.ClientEndPoint.ToString());
         }
-
-        using var clientAdd     = Server.ClientConnections.Subscribe(ClientManager.AddClient);
-        using var clientPost    = Server.ClientConnections.Subscribe(client => PostMessage(new ClientConnection(Server, client)));
-        using var clientPart    = Server.ClientDisconnections.Subscribe(client => PostMessage(new ClientDisconnection(Server, client)));
-        using var clientMessage = ClientManager.ClientMessages.Subscribe(PostMessage);
-
-        var serverTask = Server.Start(LocalEndPoint.EndPoint).ConfigureAwait(false);
-
-        // PostMessage(this, new(null, DateTime.Now, EndPointMessageType.SystemStart, SelectedServer.Name));
-        await serverTask;
     }
 
-    public async Task StopServer()
+    /// <summary>Stops the currently running server.</summary>
+    /// <returns>A task that represents completion of the stop operation.</returns>
+    public async Task StopServer() => _ = await Server.Stop();
+
+    public ProtoHackerApiManager ApiTestManager { get; }
+
+    public void Test()
     {
-        await Server.Stop();
-        Server.Dispose();
-
-        this.logStream?.Flush();
-        this.logStream?.Dispose();
-        this.logFileStream?.Dispose();
+        var testEvents = ApiTestManager.TestServer(Server, RemoteEndPoint.EndPoint);
+        MessageManager.SubscribeToStream(testEvents, MessageVM.FromTestEvent, "ProtoHackers Test API");
     }
-
-    public ApiTestManager ApiTestManager { get; }
-
-    public void Test() => _ = ApiTestManager.TestProblem(Server, RemoteEndPoint.EndPoint)
-                                            .Subscribe(PostMessage, PostException);
 
     #endregion
 
+    public void RefreshLocalIPs() => LocalEndPoint.SelectableIPs = new(SystemIPs);
+
+    /// <summary>A list of operational IPs on the current system.</summary>
     static IEnumerable<IPAddress> SystemIPs
         => NetworkInterface.GetAllNetworkInterfaces().Where(netInterface => netInterface.OperationalStatus is OperationalStatus.Up)
                            .SelectMany(netInterface => netInterface.GetIPProperties().UnicastAddresses)

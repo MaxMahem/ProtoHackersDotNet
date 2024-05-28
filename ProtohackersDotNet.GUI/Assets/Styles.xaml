@@ -13,7 +13,8 @@
 					<TabItem Header="Tab1">Tab1</TabItem>
 					<TabItem Header="Tab2">Tab2</TabItem>
 				</TabControl>
-				<Button Classes="Green">Hallo</Button>
+				<Button Classes="Green">Animated</Button>
+				<Button Classes="Blue">Staticxxxi</Button>
 			</StackPanel>
 		</Border>
 	</Design.PreviewWith>
@@ -40,8 +41,6 @@
 	<Style Selector="NumericUpDown.invalid TextBox /template/ Border">
 		<Setter Property="BorderBrush" Value="{DynamicResource SystemControlErrorTextForegroundBrush}"/>
 	</Style>
-	
-	
 	
 	<Style Selector="TextBlock.h1">
 		<Setter Property="FontSize" Value="16"/>
@@ -76,6 +75,11 @@
 
 	<Style Selector="NumericUpDown:disabled /template/ ButtonSpinner#PART_Spinner /template/ Border">
 		<Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}"/>
+	</Style>
+
+	<Style Selector="UniformGrid#MainControl Button">
+		<Setter Property="HorizontalAlignment" Value="Stretch" />
+		<Setter Property="Margin" Value="4 4 0 0" />
 	</Style>
 
 	<Style Selector="Expander">
@@ -126,15 +130,7 @@
 	<Style Selector="TextBlock.terminated">
 		<Setter Property="Foreground" Value="{DynamicResource SystemControlErrorTextForegroundBrush}" />
 	</Style>
-
-	<Style Selector="Button.Green">
-		<Setter Property="Background">
-			<Setter.Value>
-				<LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
-					<GradientStop Offset="0" Color="Green" />
-					<GradientStop Offset="1" Color="Blue" />
-				</LinearGradientBrush>
-			</Setter.Value>
-		</Setter>
+	<Style Selector="TextBlock.failure">
+		<Setter Property="Foreground" Value="{DynamicResource SystemControlErrorTextForegroundBrush}"/>
 	</Style>
 </Styles>

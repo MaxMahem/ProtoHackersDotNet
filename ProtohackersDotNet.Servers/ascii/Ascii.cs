@@ -1,6 +1,4 @@
-﻿using CommunityToolkit.Diagnostics;
-using System.IO.Hashing;
-using System.Text;
+﻿using System.IO.Hashing;
 
 namespace ProtoHackersDotNet.AsciiString;
 
@@ -32,17 +30,21 @@ public readonly partial struct ascii : IEquatable<ascii>, IComparable<ascii>
 
     #region Constructors
 
-    public ascii(Span<byte> span) => this.chars = span.ToArray();
+    public ascii(ReadOnlySpan<byte> span)
+    {
+        if (IndexOfNonAscii(span) is int index and >= 0) ThrowHelper.ThrowArgumentException($"Non ASCII character at index {index}");
+        this.chars = span.ToArray();
+    }
 
     public ascii(string str)
     {
-        if (!str.IsValidAscii()) ThrowHelper.ThrowArgumentException(nameof(str));
+        if (IndexOfNonAscii(str) is int index and >= 0) ThrowHelper.ThrowArgumentException($"Non ASCII character at index {index}");
         this.chars = [.. Encoding.ASCII.GetBytes(str)];
     }
 
     public ascii(ReadOnlySpan<char> span)
     {
-        if (!span.IsValidAscii()) ThrowHelper.ThrowArgumentException(nameof(span));
+        if (IndexOfNonAscii(span) is int index and >= 0) ThrowHelper.ThrowArgumentException($"Non ASCII character at index {index}");
         this.chars = new byte[span.Length];
         _ = Encoding.ASCII.GetBytes(span, this.chars) == span.Length || ThrowHelper.ThrowInvalidOperationException<bool>();
     }

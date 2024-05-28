@@ -1,4 +1,5 @@
 ﻿using ProtoHackersDotNet.AsciiString;
+using ProtoHackersDotNet.Servers.Interface.Client.Messages;
 
 namespace ProtoHackersDotNet.Servers.BudgetChat;
 

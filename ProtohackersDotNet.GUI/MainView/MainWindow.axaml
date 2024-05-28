@@ -16,6 +16,6 @@
 					   Source="avares://ProtoHackersDotNet.GUI/Assets/ProtoHackersDotNet.ico" />
 			<TextBlock VerticalAlignment="Center" Classes="h1" Padding="4">ProtoHackers.Net</TextBlock>
 		</StackPanel>
-		<mv:MainView Margin="10" />
+		<mv:MainView Margin="10 4 10 6" />
 	</DockPanel>
 </Window>

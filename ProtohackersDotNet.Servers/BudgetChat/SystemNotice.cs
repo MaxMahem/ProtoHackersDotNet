@@ -1,10 +1,9 @@
 ﻿using Vogen;
-using System.Text.RegularExpressions;
 
 namespace ProtoHackersDotNet.Servers.BudgetChat;
 
 [ValueObject<PrefixPostfixAscii>]
-[SuppressMessage("Usage", "AddValidationMethod:Value Objects can have validation", Justification = "From includes validation.")]
+[SuppressMessage("Usage", "AddValidationMethod:Value Objects can have validation", Justification = "From includes validation")]
 public readonly partial struct SystemNotice
 {
     public static SystemNotice From(string notice)

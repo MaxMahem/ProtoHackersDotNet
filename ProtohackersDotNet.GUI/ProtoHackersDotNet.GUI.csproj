@@ -5,22 +5,9 @@
     <LangVersion>latest</LangVersion>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
-
   
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
-  </ItemGroup>
-
-  
-  <ItemGroup>
-    <AvaloniaXaml Remove="MainView\DisplayMessageTemplate.axaml" />
-  </ItemGroup>
-
-  
-  <ItemGroup>
-    <None Remove="Assets\ProtoHackersDotNet.ico" />
-    <None Remove="Assets\Styles-Markdown.xaml" />
-    <None Remove="Assets\Styles.xaml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -35,7 +22,9 @@
     <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
     <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.0.10" />
     <PackageReference Include="DynamicData" Version="8.4.1" />
+    <PackageReference Include="LoadingIndicators.Avalonia" Version="11.0.10" />
     <PackageReference Include="Markdown.Avalonia.Tight" Version="11.0.2" />
+    <PackageReference Include="Material.Icons.Avalonia" Version="2.1.9" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
     <PackageReference Include="System.Linq.Async" Version="6.0.1" />
@@ -58,9 +47,5 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <UpToDateCheckInput Remove="MainView\Client\DisplayMessageTemplate.axaml" />
   </ItemGroup>
 </Project>

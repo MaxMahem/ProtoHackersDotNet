@@ -1,5 +1,4 @@
-﻿using System.Text;
-using ProtoHackersDotNet.AsciiString;
+﻿using ProtoHackersDotNet.AsciiString;
 
 namespace ProtoHackersDotNet.Servers.BudgetChat;
 
@@ -14,22 +13,22 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
 
     #region On Overloads
 
-    protected override async Task OnConnect()
+    protected override async Task OnConnect(CancellationToken token)
     {
         await Transmit(Server.WelcomeMessage.ToTransmission(false));
         State = BudgetChatClientState.Welcome;
     }
 
-    protected override async Task OnException(Exception exception)
+    protected override async Task OnException(Exception exception, CancellationToken token)
     {
-        if (CurrentConnectionStatus is Interfaces.Client.ConnectionStatus.Connected) {
+        if (LatestConnectionStatus is Interface.Client.ConnectionStatus.Connected) {
             ascii ascii = new(exception.Message + '\n');
             await Transmit(ascii.ToTransmission(false));
         }
             
     }
 
-    protected override async Task OnDisconnect()
+    protected override async Task OnDisconnect(CancellationToken token)
     {
         if (State == BudgetChatClientState.Joined)
             await Server.BroadcastPart(this);
@@ -40,27 +39,34 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
 
     protected override async Task ProcessLine(ReadOnlySequence<byte> line)
     {
-        // Trim any trailing whitespace from the sequence. 
-        var lastPosition = line.LastPositionOfAnyExcept(WhiteSpace) 
-            ?? ThrowHelper.ThrowInvalidOperationException<SequencePosition>("There should always be a line ending to trim.");
-        line = line.Slice(line.Start, line.GetPosition(1, lastPosition)); // slice is *exclusive* of the end, we want inclusive.
+        try {
+            // Trim any trailing whitespace from the sequence. 
+            var lastPosition = line.LastPositionOfAnyExcept(WhiteSpace)
+            ?? ThrowHelper.ThrowInvalidOperationException<SequencePosition>("There should always be a line ending to trim");
+            line = line.Slice(line.Start, line.GetPosition(1, lastPosition)); // slice is *exclusive* of the end, we want inclusive.
 
-        switch (State) {
-            case BudgetChatClientState.Welcome:
-                UserName = AsciiName.From(new(line));
+            ascii asciiLine = new(line);
 
-                State = BudgetChatClientState.Joined;
-                StatusValue = $"Joined: {UserName.Value}";
+            switch (State) {
+                case BudgetChatClientState.Welcome:
+                    var userName = AsciiName.From(asciiLine);
+                    UserName = Server.ValidateName(userName);
 
-                await Server.BroadcastJoin(this);
+                    State = BudgetChatClientState.Joined;
+                    LatestStatus = $"Joined: {UserName}";
 
-                await Transmit(Server.GetPresentNotice(this).ToTransmission(false));
-                break;
-            case BudgetChatClientState.Joined:
-                await Server.BroadcastChat(this, line);
-                break;
-            default:
-                throw new InvalidOperationException();
+                    await Server.BroadcastJoin(this);
+
+                    await Transmit(Server.GetPresentNotice(this).ToTransmission(false));
+                    break;
+                case BudgetChatClientState.Joined:
+                    await Server.BroadcastChat(this, line);
+                    break;
+                default: throw new InvalidOperationException();
+            }
+        }
+        catch (Exception exception) when (exception is not InvalidOperationException) {
+            throw new ClientException(exception) { Client = this };
         }
     }
 
@@ -68,6 +74,6 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
     protected override SequencePosition? FindLineEnd(ReadOnlySequence<byte> buffer)
         => buffer.PositionOf(BudgetChatServer.LINE_DELIMITER, 1);
 
-    protected override string TranslateRecieption(ReadOnlySequence<byte> buffer)
+    protected override string TranslateReception(ReadOnlySequence<byte> buffer)
         => Encoding.ASCII.GetString(buffer);
 }

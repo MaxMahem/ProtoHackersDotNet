@@ -6,7 +6,7 @@ public class ClientVM(IClient client, TimeSpan updateInterval)
 
     public IObservable<TimeSpan> ConnectionAge { get; }
         = Observable.Interval(updateInterval).Select(_ => client.ConnectedAt - DateTime.UtcNow).StartWith(TimeSpan.Zero)
-                    .TakeWhile(_ => client.CurrentConnectionStatus is ConnectionStatus.Connected)
+                    .TakeWhile(_ => client.LatestConnectionStatus is ConnectionStatus.Connected)
                     .Replay(1).RefCount();
 
     public IObservable<bool> IsConnected { get; } = client.ConnectionStatus.Contains(ConnectionStatus.Connected);

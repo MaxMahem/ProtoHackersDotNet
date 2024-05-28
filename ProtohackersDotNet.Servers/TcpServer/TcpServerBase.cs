@@ -1,5 +1,4 @@
-﻿using System.Reactive.Linq;
-using System.Reactive.Subjects;
+﻿using System.Collections.Concurrent;
 using static CommunityToolkit.Diagnostics.ThrowHelper;
 
 namespace ProtoHackersDotNet.Servers.TcpServer;
@@ -7,138 +6,124 @@ namespace ProtoHackersDotNet.Servers.TcpServer;
 abstract public class TcpServerBase<TClient> : IServer<TClient>
     where TClient : IClient
 {
-    TcpListener? listener;
-    CancellationTokenSource? cancellationTokenSource;
+    CancellationTokenSource? cancellationSource;
 
-    public virtual string Name => Problem.Name;
+    public abstract ServerName Name { get; }
     public abstract Problem Problem { get; }
 
-    public IPEndPoint? EndPoint => this.listener?.LocalEndpoint as IPEndPoint;
+    public IPEndPoint? LocalEndPoint { get; private set; }
 
     protected abstract TClient CreateClient(TcpClient client, CancellationToken token);
 
-    readonly Dictionary<Task, TClient> taskClients = [];
+    /// <summary>Dictionary of currently active clients.</summary>
+    readonly ConcurrentDictionary<Guid, TClient> activeClients = [];
+
+    /// <summary>Temporary observer reference for pushing notifications while the server is listening.</summary>
+    IObserver<ServerEvent>? serverObserver;
 
     /// <summary>Enumeration of currently active <typeparamref name="TClient"/>.</summary>
-    public IEnumerable<TClient> Clients => taskClients.Values;
+    public IEnumerable<TClient> Clients => activeClients.Values;
 
-    #region Observables
-
-    readonly BehaviorSubject<bool> listerningObserver = new(false);
-    public IObservable<bool> Listening => this.listerningObserver.AsObservable();
+    readonly BehaviorSubject<bool> listeningObserver = new(false);
+    public IObservable<bool> Listening => this.listeningObserver.AsObservable();
     public bool CurrentlyListening {
-        get => this.listerningObserver.Value;
-        private set => this.listerningObserver.OnNext(value);
+        get         => this.listeningObserver.Value;
+        private set => this.listeningObserver.OnNext(value);
     }
 
-    public IObservable<TClient> ClientConnections => clientConnectionObserver.AsObservable();
-    readonly Subject<TClient> clientConnectionObserver = new();
-
-    public IObservable<TClient> ClientDisconnections => clientDisconnetionObserver.AsObservable();
-    readonly Subject<TClient> clientDisconnetionObserver = new();
-
-    public IObservable<ITransmission> Broadcasts => broadcastObserver.AsObservable();
-    readonly Subject<ITransmission> broadcastObserver = new();
-
-    public IObservable<Exception> ServerExceptions => serverExceptionObserver.AsObservable();
-    readonly Subject<Exception> serverExceptionObserver = new();
-
-    #endregion
-
-    /// <summary>Starts the server and begins listening for clients.</summary>
-    /// <param name="token">A cancellation token that can be used to halt the server.</param>
-    /// <returns>A task that represents completion of the listening process.</returns>
-    public async Task Start(IPEndPoint endPoint, CancellationToken? token = null)
+    public IConnectableObservable<ServerEvent> Start(IPEndPoint endPoint, CancellationToken token = default)
     {
-        if (CurrentlyListening) ThrowInvalidOperationException("Server already started.");
-        this.cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(token ?? new CancellationToken());
+        if (CurrentlyListening) ThrowInvalidOperationException("Server already started");
+        this.cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(token);
 
-        this.listener = new(endPoint);
-        this.listener.Start();
-        CurrentlyListening = true;
-        
-        // NotifyServerEvent(ServerEventType.Start, $"{Name} started.");
+        LocalEndPoint = endPoint;
 
-        Task<TcpClient> listenerTask = this.listener.AcceptTcpClientAsync(this.cancellationTokenSource.Token).AsTask();
+        return Observable.Create<ServerEvent>(HandleSubscription).Publish();
+    }
 
-        var tasks = this.taskClients.Keys.Append(listenerTask);
+    async Task HandleSubscription(IObserver<ServerEvent> observer, CancellationToken unsubscribeToken)
+    {
+        Debug.Assert(this.cancellationSource is not null);
+        var token = CTSHelper.LinkTokenSource(ref this.cancellationSource, unsubscribeToken);
+
+        this.serverObserver = observer;
+
+        Debug.Assert(LocalEndPoint is not null);
+        using TcpListener listener = new(LocalEndPoint);
 
         try {
+            listener.Start();
+            CurrentlyListening = true;
+            observer.OnNext(new ServerStartupEvent(this));
+
             do {
-                var completedTask = await Task.WhenAny(tasks);
+                // wait here for new connection
+                var newTcpConnection = await listener.AcceptTcpClientAsync(token);
+                var connectedClient = CreateClient(newTcpConnection, token);
+                this.activeClients[connectedClient.Id] = connectedClient;
 
-                switch (completedTask) {
-                    // client connect.
-                    case Task<TcpClient> completedListenerTask:
-                        var client = CreateClient(completedListenerTask.Result, cancellationTokenSource.Token);
+                // subscribe to track completion of the client.
+                connectedClient.Events.Finally(() => ClientDisconnect(connectedClient))
+                               .Subscribe(Stub.DoNothing, Stub.IgnoreError, token);
 
-                        this.clientConnectionObserver.OnNext(client);
+                // this exposes the client externally so it may be subscribed to.
+                observer.OnNext(new ClientConnectionEvent(this, connectedClient));
+            } while (true); // only exit is via cancellation.
 
-                        // start the client handler and add the managing task to the dictionary.
-                        var clientTask = client.HandleClient();
-                        this.taskClients[clientTask] = client;
-
-                        // reset the listner.
-                        listenerTask = this.listener.AcceptTcpClientAsync(cancellationTokenSource.Token).AsTask();
-                        break;
-                    // client disconnect.
-                    case Task completedClientTask:
-                        var completedClient = this.taskClients[completedTask];
-
-                        this.clientDisconnetionObserver.OnNext(completedClient);
-
-                        completedClient.Dispose();
-
-                        _ = this.taskClients.Remove(completedTask) || ThrowInvalidOperationException<bool>("Task not found in dictionary.");
-                        break;
-                    default: throw new InvalidOperationException();
-                }
-                tasks = this.taskClients.Keys.Append(listenerTask);
-            } while (!this.cancellationTokenSource.Token.IsCancellationRequested);
+            // currently no way to reach this endpoint.
+        } // operation canceled.
+        catch (OperationCanceledException exception) when (exception.CancellationToken.IsCancellationRequested) {
+            observer.OnNext(new ServerShutdownEvent(this));
+            observer.OnCompleted();
         }
         catch (Exception exception) {
-            this.serverExceptionObserver.OnNext(exception);
+            observer.OnError(exception);
         }
-        finally {
+        finally { // server shutdown
             DisposeClients();
-            this.listener.Stop();
+            listener.Stop();
             CurrentlyListening = false;
+
+            this.serverObserver = null;
         }
     }
 
-    /// <summary>Broadcasts <paramref name="message"/> to <paramref name="recepients"/>.</summary>
-    public async Task Broadcast<TMessage>(IEnumerable<TClient> recepients, TMessage message)
+    void ClientDisconnect(IClient client)
+    {
+        this.serverObserver?.OnNext(new ClientDisconnectEvent(this, client));
+        _ = this.activeClients.TryRemove(client.Id, out var _) || ThrowInvalidOperationException<bool>();
+        client.Dispose();
+    }
+
+    /// <summary>Broadcasts <paramref name="message"/> to <paramref name="recipients"/>.</summary>
+    public async Task Broadcast<TMessage>(IEnumerable<TClient> recipients, TMessage message)
         where TMessage : ITransmission
     {
-        await Task.WhenAll(recepients.Select(client => client.Transmit(message)));
-        this.broadcastObserver.OnNext(message);
+        await Task.WhenAll(recipients.Select(client => client.Transmit(message)));
+        this.serverObserver?.OnNext(new ServerBroadcastEvent(this, message));
     }
 
     void DisposeClients()
     {
-        foreach (var client in this.taskClients.Values) client.Dispose();
+        foreach (var client in this.activeClients.Values) client.Dispose();
     }
 
-    public async Task Stop()
+    public async Task<IDisposable> Stop()
     {
-        if (!CurrentlyListening) ThrowInvalidOperationException("Server not started.");
-        ArgumentNullException.ThrowIfNull(this.cancellationTokenSource);
-        ArgumentNullException.ThrowIfNull(this.listener);
+        if (!CurrentlyListening) ThrowInvalidOperationException("Server not started");
 
-        await this.cancellationTokenSource.CancelAsync();
-        DisposeClients();
-
-        this.listener?.Stop();
-        CurrentlyListening = false;
-        // NotifyServerEvent(ServerEventType.Stop, $"{Name} stopped.");
+        Debug.Assert(this.cancellationSource is not null);
+        await this.cancellationSource.CancelAsync();
+        
+        return this;
     }
 
     public void Dispose()
     {
         GC.SuppressFinalize(this);
+
         DisposeClients();
-        this.cancellationTokenSource?.Cancel();
-        this.cancellationTokenSource?.Dispose();
-        this.listener?.Dispose();
+        this.cancellationSource?.Cancel();
+        this.cancellationSource?.Dispose();
     }
 }

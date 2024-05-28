@@ -1,13 +1,20 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+						 xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              x:Class="ProtoHackersDotNet.GUI.App"
              RequestedThemeVariant="Dark">
 	<Application.Resources>
-		<FontFamily x:Key="Monospace">avares://ProtoHackersDotNet.GUI/Assets/Fonts#IBM Plex Mono</FontFamily>
-		<!--<ResourceInclude Source="avares://ProtoHackersDotNet.GUI/Assets/Themes.axaml" />-->
+		<ResourceDictionary>
+			<FontFamily x:Key="Monospace">avares://ProtoHackersDotNet.GUI/Assets/Fonts#IBM Plex Mono</FontFamily>
+			<ResourceDictionary.MergedDictionaries>
+				<ResourceInclude Source="avares://LoadingIndicators.Avalonia/LoadingIndicators.axaml" />
+				<ResourceInclude Source="avares://ProtoHackersDotNet.GUI/MainView/Messages/DisplayMessageTemplate.axaml" />
+			</ResourceDictionary.MergedDictionaries>
+		</ResourceDictionary>
 	</Application.Resources>
   <Application.Styles>
     <FluentTheme />
+		<materialIcons:MaterialIconStyles />
 		<StyleInclude Source="avares://Avalonia.Controls.TreeDataGrid/Themes/Fluent.axaml"/>
 		<StyleInclude Source="avares://ProtoHackersDotNet.GUI/Assets/Styles.xaml"/>
 		<StyleInclude Source="avares://ProtoHackersDotNet.GUI/Assets/Styles-Markdown.xaml"/>

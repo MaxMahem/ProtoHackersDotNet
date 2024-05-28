@@ -20,7 +20,7 @@
 							 Classes.terminated="{Binding IsTerminated^}">
 			<TextBlock.Text>
 				<MultiBinding Converter="{x:Static mv:Converters.JoinConverter}">
-					<Binding Path="Client.EndPoint" />
+					<Binding Path="Client.ClientEndPoint" />
 					<Binding Path="$parent[mv:MainView].((mv:MainViewModel)DataContext).Server.Name" Mode="OneTime"/>
 					<Binding Path="Client.Status^" />
 				</MultiBinding>
@@ -40,7 +40,7 @@
 							 Classes.disconnected="{Binding IsDisconnected^}"
 							 Classes.terminated="{Binding IsTerminated^}"/>
 		<TextBlock Grid.Column="3" Grid.Row="0" 
-							 Text="{Binding Client.TotalBytesRecieved^}"
+							 Text="{Binding Client.TotalBytesReceived^}"
 							 HorizontalAlignment="Right"
 							 Classes="mono cell"
 							 Classes.disconnected="{Binding IsDisconnected^}"
