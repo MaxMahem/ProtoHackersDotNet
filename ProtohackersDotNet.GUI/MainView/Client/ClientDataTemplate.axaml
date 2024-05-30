@@ -21,7 +21,6 @@
 			<TextBlock.Text>
 				<MultiBinding Converter="{x:Static mv:Converters.JoinConverter}">
 					<Binding Path="Client.ClientEndPoint" />
-					<Binding Path="$parent[mv:MainView].((mv:MainViewModel)DataContext).Server.Name" Mode="OneTime"/>
 					<Binding Path="Client.Status^" />
 				</MultiBinding>
 			</TextBlock.Text>

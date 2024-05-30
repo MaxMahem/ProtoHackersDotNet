@@ -1,31 +1,21 @@
-﻿using System.Reactive.Subjects;
-using System.Diagnostics.CodeAnalysis;
-using CommunityToolkit.HighPerformance;
+﻿using CommunityToolkit.HighPerformance;
 
 namespace ProtoHackersDotNet.GUI.MainView;
 
-public partial class TextEndPointVM(IPAddress? ip, ushort? port) : EndPointVM(ip, port)
+public partial class TextEndPoint(IPAddress? ip, ushort? port) : EndPointVM(ip, port)
 {
-    readonly BehaviorSubject<bool> ipValidityObserver = new(false);
-    public override IObservable<bool> IPValid => ipValidityObserver.AsObservable();
-
-    IPAddress? _IP = ip;
-    public override IPAddress? IP {
-        get => this._IP;
-        set {
-            _IP = value;
-            this.ipValidityObserver.OnNext(value is not null);
-        }
-    }
-
     string? _IPText = ip?.ToString();
     public string? IPText {
         get => this._IPText;
-        set => IP = SetProperty(ref _IPText, value) ? value switch {
+        set {
+            if (value == this._IPText) return;
+            _IPText = value;
+            IP = value switch {
                 string value4 when value.Count('.') is 3 && TryParseIPv4(value4, out var ipv4) => ipv4,
                 string value6 when value.Contains(':') && IPAddress.TryParse(value6, out var ipv6) => ipv6,
                 _ => null,
-            } : null;
+            };
+        }
     }
 
     static bool TryParseIPv4(ReadOnlySpan<char> input, [NotNullWhen(true)] out IPAddress? ip)

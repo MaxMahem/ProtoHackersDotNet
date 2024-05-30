@@ -9,10 +9,10 @@ public partial class TestLogMessage : TestEvent
         (Group timestamp, Message) = LogRegex().Matches(log) switch {
             [{ Groups: [_, var time, var test, var status, { Success: true } mess] }] => (time, $"{test} - {status}: {mess}"),
             [{ Groups: [_, var time, var test, var status, _] }]                      => (time, $"{test} - {status}"),
-            _ => ThrowHelper.ThrowFormatException<(Group, string)>($"'{log}' failed parsing")
+            _ => ThrowFormatException<(Group, string)>($"'{log}' failed parsing")
         };
         Timestamp = DateTimeOffset.ParseExact(timestamp.ValueSpan, "ddd MMM dd HH:mm:ss yyyy 'UTC'", CultureInfo.InvariantCulture, 
-            DateTimeStyles.AssumeUniversal).ToUniversalTime();
+            DateTimeStyles.AssumeUniversal);
     }
 
     public override string Message { get; }

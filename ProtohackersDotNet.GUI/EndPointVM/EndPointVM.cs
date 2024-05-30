@@ -1,23 +1,27 @@
-﻿using System.Reactive.Subjects;
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using ProtoHackersDotNet.GUI.EndPointVM;
 
 namespace ProtoHackersDotNet.GUI.MainView;
 
-public abstract partial class EndPointVM : ObservableObject
+public abstract class EndPointVM(IPAddress? ip, ushort? port)
 {
-    [ObservableProperty]
-    ushort? port;
-    partial void OnPortChanged(ushort? value) => this.portValidityObserver.OnNext(value is not null);
-    readonly BehaviorSubject<bool> portValidityObserver = new(false);
-    public IObservable<bool> PortValid => this.portValidityObserver.AsObservable();
+    readonly ValidateableProperty<ushort?> observablePort = ValidateableProperty<ushort?>.NotNull(port);
+    public ushort? Port {
+        get => this.observablePort.Value;
+        set => this.observablePort.Value = value;
+    }
+    public IObservable<bool> PortValid => this.observablePort.Valid;
 
-    public abstract IPAddress? IP { get; set; }
-
-    public abstract IObservable<bool> IPValid { get; }
-
-    public EndPointVM(IPAddress? ip, ushort? port) => (Port, IP) = (port, ip);
+    readonly ValidateableProperty<IPAddress?> validateableIP = ValidateableProperty<IPAddress?>.NotNull(ip);
+    public virtual IPAddress? IP {
+        get => this.validateableIP.Value;
+        set => this.validateableIP.Value = value;
+    }
+    public virtual IObservable<bool> IPValid => validateableIP.Valid;
 
     public IObservable<bool> Valid => Observable.CombineLatest(PortValid, IPValid, (portValid, ipValid) => portValid && ipValid);
 
-    public IPEndPoint EndPoint => Valid.Latest().First() ? new(IP!, Port!.Value) : ThrowHelper.ThrowArgumentNullException<IPEndPoint>();
+    public IObservable<IPEndPoint> EndPoint => Valid.Where().Select(v => new IPEndPoint(IP!, Port!.Value));
+    public IPEndPoint LatestValidEndPoint => EndPoint.Latest().First();
+
+    public SerializableEndPoint ToSerializable() => new(IP?.ToString(), Port);
 }

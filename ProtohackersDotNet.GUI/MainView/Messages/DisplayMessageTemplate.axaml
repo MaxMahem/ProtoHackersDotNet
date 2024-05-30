@@ -4,7 +4,8 @@
 										xmlns:pa="using:ProtoHackersDotNet.GUI.MainView.ProtoHackerApi.Events"
 										xmlns:m="using:ProtoHackersDotNet.GUI.MainView.Messages">
 	<DataTemplate x:Key="MessageGridTemplate" DataType="m:MessageVM">
-		<Grid RowDefinitions="Auto">
+		<Grid Name="DISPLAY_MESSAGE_GRID" RowDefinitions="Auto" 
+					Classes.failure="{Binding IsError}" Classes.success="{Binding IsSuccess}">
 			<Grid.ColumnDefinitions>
 				<ColumnDefinition Width="2*" />
 				<ColumnDefinition Width="1*" />
@@ -12,16 +13,15 @@
 			</Grid.ColumnDefinitions>
 			<TextBlock Grid.Column="0" Grid.Row="0"
 								 Text="{Binding Source}"
-								 Classes="cell" Classes.failure="{Binding IsError}" Classes.success="{Binding IsSuccess}"/>
+								 Classes="cell" />
 			<TextBlock Grid.Column="1" Grid.Row="0"
 								 Text="{Binding Timestamp, StringFormat=HH:mm:ss.ff}"
 								 HorizontalAlignment="Center"
-								 Classes="mono cell" Classes.failure="{Binding IsError}" Classes.success="{Binding IsSuccess}"/>
+								 Classes="mono cell"/>
 			<DockPanel Grid.Column="2" Grid.Row="0" HorizontalAlignment="Right">
 				<icons:MaterialIcon Kind="{Binding Icon}" DockPanel.Dock="Right"
 														Height="{Binding #MessageCell.Bounds.Height}" ToolTip.Tip="{Binding Type}"/>
 				<TextBlock Grid.Column="3" Grid.Row="0" Name="MessageCell" Text="{Binding Message}"
-									 Classes.failure="{Binding IsError}" Classes.success="{Binding IsSuccess}"
 									 HorizontalAlignment="Right"/>
 			</DockPanel>
 		</Grid>

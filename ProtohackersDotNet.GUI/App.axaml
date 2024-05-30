@@ -13,7 +13,12 @@
 		</ResourceDictionary>
 	</Application.Resources>
   <Application.Styles>
-    <FluentTheme />
+    <FluentTheme>
+			<FluentTheme.Palettes>
+				<!-- Palette for Dark theme variant -->
+				<ColorPaletteResources x:Key="Dark" Accent="#2E5BFF" RegionColor="Black" ErrorText="#cc0000" />
+			</FluentTheme.Palettes>
+		</FluentTheme>
 		<materialIcons:MaterialIconStyles />
 		<StyleInclude Source="avares://Avalonia.Controls.TreeDataGrid/Themes/Fluent.axaml"/>
 		<StyleInclude Source="avares://ProtoHackersDotNet.GUI/Assets/Styles.xaml"/>

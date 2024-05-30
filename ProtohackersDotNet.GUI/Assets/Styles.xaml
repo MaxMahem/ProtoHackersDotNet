@@ -1,11 +1,20 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+				xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
 				xmlns:md="https://github.com/whistyun/Markdown.Avalonia.Tight"
 				xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia">
 	<Design.PreviewWith>
 		<Border Padding="20">
 			<StackPanel>
-				<Label Classes="h1">Label h2</Label>
+				<Label Classes="h1">Label h1</Label>
+				<Label Classes="h2 header">Label header h2</Label>
+				<Grid Classes="success">
+					<TextBlock>Success</TextBlock>
+				</Grid>
+				<ListBox>
+					<TextBlock>Lb1</TextBlock>
+					<TextBlock>Lb2</TextBlock>
+				</ListBox>
 				<TextBlock Classes="h1">Header h1</TextBlock>
 				<TextBox Classes="mono invalid">mono invalid</TextBox>
 				<NumericUpDown Classes="mono invalid" />
@@ -15,9 +24,24 @@
 				</TabControl>
 				<Button Classes="Green">Animated</Button>
 				<Button Classes="Blue">Staticxxxi</Button>
+				<ItemsControl Classes="filterList">
+					<CheckBox Classes="filterItem">One</CheckBox>
+					<CheckBox Classes="filterItem">Two</CheckBox>
+					<CheckBox Classes="filterItem">Three</CheckBox>
+				</ItemsControl>
 			</StackPanel>
 		</Border>
 	</Design.PreviewWith>
+
+	<Styles.Resources>
+    <!-- Shading Colors -->
+    <Color x:Key="MutedTealColor">#FF008080</Color> <!-- Muted Teal -->
+    <Color x:Key="DarkOliveGreenColor">#FF556B2F</Color> <!-- Dark Olive Green -->
+    <Color x:Key="DarkSlateBlueColor">#FF483D8B</Color> <!-- Dark Slate Blue -->
+    <Color x:Key="DimGrayColor">#FF696969</Color> <!-- Dim Gray -->
+    <Color x:Key="DarkRedColor">#FF8B0000</Color> <!-- Dark Red -->
+    <Color x:Key="SteelBlueColor">#FF4682B4</Color> <!-- Steel Blue -->
+	</Styles.Resources>
 
 	<Style Selector="TabControl">
 		<Setter Property="Padding" Value="0" />
@@ -83,8 +107,7 @@
 	</Style>
 
 	<Style Selector="Expander">
-		<Setter Property="Background" Value="Transparent" />
-		<Setter Property="BorderBrush" Value="Transparent" />
+		<Setter Property="Background" Value="{DynamicResource SystemRegionBrush}" />
 		<Setter Property="BorderThickness" Value="0" />
 	</Style>
 	<Style Selector="Expander /template/ ToggleButton#ExpanderHeader /template/ Border#ToggleButtonBackground">
@@ -107,6 +130,13 @@
 		<Setter Property="Padding" Value="4 2 4 2" />
 		<Setter Property="BorderThickness" Value="1" />
 		<Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseLowBrush}" />
+		<!-- Background needs to be set so that click events can populate -->
+		<Setter Property="Background" Value="{DynamicResource SystemRegionColor}"/>
+	</Style>
+	<!-- Hover pointer that indicates label is clickable. -->
+	<Style Selector="Label.filterLabel:pointerover">
+		<Setter Property="Background" Value="{DynamicResource SystemControlForegroundBaseLowBrush}" />
+		<Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
 	</Style>
 	<Style Selector="Label.header.up">
 		<Setter Property="CornerRadius" Value="0 0 4 4" />
@@ -116,21 +146,46 @@
 		<Setter Property="ClipToBounds" Value="True" />
 	</Style>
 
+	<!-- Set filter list item checkbox to minimum height -->
+	<Style Selector="ItemsControl.filterList CheckBox.filterItem /template/ Grid">
+		<Setter Property="Height" Value="NaN" />
+		<Setter Property="Margin" Value="0 1" />
+	</Style>
+	<Style Selector="ItemsControl.filterList CheckBox.filterItem">
+		<Setter Property="MinHeight" Value="0" />
+	</Style>
+
 	<Style Selector="ListBox">
 		<Setter Property="Background" Value="Transparent" />
 		<Setter Property="BorderThickness" Value="0" />
 	</Style>
-	<Style Selector="ListBoxItem">
-		<Setter Property="Padding" Value="4" />
+	<Style Selector="ListBox#MessageList ListBoxItem">
+		<Setter Property="Padding" Value="8 2 8 2" />
 	</Style>
+	<Style Selector="ListBox#MessageList icons|MaterialIcon">
+		<Setter Property="Margin" Value="2 0 0 0" />
+	</Style>
+	
 
+	<!-- Client lines terminated/disconnected -->
 	<Style Selector="TextBlock.disconnected">
 		<Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
 	</Style>
 	<Style Selector="TextBlock.terminated">
 		<Setter Property="Foreground" Value="{DynamicResource SystemControlErrorTextForegroundBrush}" />
 	</Style>
-	<Style Selector="TextBlock.failure">
+	
+	<!-- Meesage lines success/failure -->
+	<Style Selector="Grid.failure TextBlock">
 		<Setter Property="Foreground" Value="{DynamicResource SystemControlErrorTextForegroundBrush}"/>
+	</Style>
+	<Style Selector="Grid.failure icons|MaterialIcon">
+		<Setter Property="Foreground" Value="{DynamicResource SystemControlErrorTextForegroundBrush}"/>
+	</Style>
+	<Style Selector="Grid.success TextBlock">
+		<Setter Property="Foreground" Value="{DynamicResource SystemControlHighlightAltAccentBrush}"/>
+	</Style>
+	<Style Selector="Grid.success icons|MaterialIcon">
+		<Setter Property="Foreground" Value="{DynamicResource SystemControlHighlightAltAccentBrush}"/>
 	</Style>
 </Styles>

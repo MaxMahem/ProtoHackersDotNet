@@ -4,8 +4,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
 						 xmlns:md="clr-namespace:Markdown.Avalonia;assembly=Markdown.Avalonia"
 						 xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"
-						 xmlns:ia="using:Avalonia.Xaml.Interactivity"
 						 xmlns:interAct="clr-namespace:Avalonia.Xaml.Interactivity;assembly=Avalonia.Xaml.Interactivity"
+						 xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
 						 xmlns:li="using:LoadingIndicators.Avalonia"
 						 xmlns:mv="using:ProtoHackersDotNet.GUI.MainView"
 						 xmlns:mvc="using:ProtoHackersDotNet.GUI.MainView.Client"
@@ -20,7 +20,7 @@
     <!--<mv:MainViewModel />-->
   </Design.DataContext>
 	<Grid ColumnDefinitions="*, 1, 4*, 0" RowDefinitions="*, auto" Name="MainGrid">
-		<DockPanel Name="Server" Grid.Column="0" Grid.Row="0">
+		<DockPanel Name="ServerData" Grid.Column="0" Grid.Row="0" DataContext="{Binding ServerManager}">
 			<DockPanel DockPanel.Dock="Top" Name="ServerSelect">
 				<Label DockPanel.Dock="Left" Target="{Binding #TypeDropdown}" Classes="h1">Server</Label>
 				<ComboBox Name="TypeDropdown" HorizontalAlignment="Right"
@@ -39,8 +39,8 @@
 						<Grid ColumnDefinitions="1*, 2*" RowDefinitions="auto, auto">
 							<Label    Grid.Column="0" Grid.Row="0" Target="{Binding #LocalIP}"
 												VerticalAlignment="Center" Classes="h2">IP</Label>
-							<ComboBox Grid.Column="1" Grid.Row="0" Name="LocalIP"
-												HorizontalAlignment="Stretch" Classes="mono" DropDownOpened="ComboBox_DropDownOpened"
+							<ComboBox Name="LocalIP" Grid.Column="1" Grid.Row="0"
+												HorizontalAlignment="Stretch" Classes="mono"
 												ItemsSource="{Binding LocalEndPoint.SelectableIPs}" SelectedItem="{Binding LocalEndPoint.IP}"
 												IsEnabled="{Binding !Server.Listening^}" />
 							<Label         Grid.Column="0" Grid.Row="1" Target="{Binding #LocalPort}"
@@ -61,7 +61,7 @@
 											 HorizontalAlignment="Stretch" Classes="mono"
 											 Classes.invalid="{Binding !RemoteEndPoint.IPValid^}"
 											 Text="{Binding RemoteEndPoint.IPText}"
-											 IsEnabled="{Binding !ApiTestManager.TestRunning^}" />
+											 IsEnabled="{Binding !TestServerCommand.TestRunning^}" />
 							<Label         Grid.Column="0" Grid.Row="1" Target="{Binding #RemotePort}"
 														 VerticalAlignment="Center" Classes="h2">Port</Label>
 							<NumericUpDown Grid.Column="1" Grid.Row="1" Name="RemotePort"
@@ -69,7 +69,7 @@
 														 ShowButtonSpinner="False" Classes="mono"
 														 Classes.invalid="{Binding !RemoteEndPoint.PortValid^}"
 														 Value="{Binding RemoteEndPoint.Port}"
-														 IsEnabled="{Binding !ApiTestManager.TestRunning^}" />
+														 IsEnabled="{Binding !TestServerCommand.TestRunning^}" />
 						</Grid>
 					</TabItem>
 				</TabControl>
@@ -94,18 +94,19 @@
 				</md:MarkdownScrollViewer>
 			</Border>
 		</DockPanel>
-		<UniformGrid Name="MainControl" Grid.Column="0" Grid.Row="1" Columns="4">
+		<UniformGrid Name="MainControl" DataContext="{Binding ServerManager}" 
+								 Grid.Column="0" Grid.Row="1" Columns="4">
 			<li:LoadingIndicator Name="LoadingIndicator" Mode="Wave" SpeedRatio="1.0"
-													 IsActive="{Binding ApiTestManager.TestRunning^}"
+													 IsActive="{Binding TestServerCommand.TestRunning^}"
 													 MinWidth="0" Width="{Binding #TestButton.Bounds.Width}"
 													 MinHeight="0" Height="{Binding #TestButton.Bounds.Height}" 
 													 HorizontalAlignment="Stretch" />
-			<Button Command="{Binding Test}" Name="TestButton">
+			<Button Command="{Binding TestServer}" Name="TestButton">
 				<Button.IsEnabled>
 					<MultiBinding Converter="{x:Static BoolConverters.And}">
 						<Binding Path="Server.Listening^"/>
 						<Binding Path="RemoteEndPoint.Valid^"/>
-						<Binding Path="!ApiTestManager.TestRunning^"/>
+						<Binding Path="!TestServerCommand.TestRunning^"/>
 					</MultiBinding>
 				</Button.IsEnabled>
 				<TextBlock>Test</TextBlock>
@@ -151,9 +152,9 @@
 				</DockPanel>
 			</Expander>
 			<GridSplitter Grid.Column="0" Grid.Row="1"></GridSplitter>
-			<DockPanel Grid.Column="0" Grid.Row="2">
+			<DockPanel Grid.Column="0" Grid.Row="2" DataContext="{Binding MessageManager}">
 				<TextBlock DockPanel.Dock="Top" Margin="16 8 0 8" Classes="h2"
-									 Text="{Binding MessageManager.MessageCount^, StringFormat='Messages ({0})'}" />
+									 Text="{Binding MessageCount^, StringFormat='Messages ({0})'}" />
 				<Border BorderThickness="1" CornerRadius="0 0 3 3"
 							  BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}">
 					<Grid IsSharedSizeScope="True" ColumnDefinitions="*" RowDefinitions="*">
@@ -164,23 +165,34 @@
 									<ColumnDefinition Width="*" />
 									<ColumnDefinition Width="5*" />
 								</Grid.ColumnDefinitions>
-								<Label Name="SourceLabel" Grid.Column="0" Classes="h2 header" Content="Source" PointerPressed="SourceLabel_PointerPressed">
+								<Label Name="SourceLabel" Grid.Column="0" Content="Source" 
+											 Classes="h2 header filterLabel"
+											 Tapped="SourceLabel_Tapped">
 									<FlyoutBase.AttachedFlyout>
-										<Flyout>
-											<ListBox ItemsSource="{Binding MessageManager.Filter.Entries}">
-												<ListBox.ItemTemplate>
+										<Flyout Placement="BottomEdgeAlignedLeft">
+											<ItemsControl ItemsSource="{Binding SourceFilter.Entries}"
+															 Classes="filterList">
+												<ItemsControl.ItemTemplate>
 													<DataTemplate>
-														<CheckBox Content="{Binding Entry}" IsChecked="{Binding Selected}" />
+														<CheckBox Content="{Binding Entry}" IsChecked="{Binding Selected}" Classes="filterItem"/>
 													</DataTemplate>
-												</ListBox.ItemTemplate>
-											</ListBox>
+												</ItemsControl.ItemTemplate>
+											</ItemsControl>
 										</Flyout>
 									</FlyoutBase.AttachedFlyout>
 								</Label>
 								<Label Grid.Column="1" Classes="h2 header" HorizontalContentAlignment="Center">Timestamp</Label>
-								<Label Grid.Column="3" Classes="h2 header" HorizontalContentAlignment="Right">Message</Label>
+								<Label Name="MessageLabel" Grid.Column="3" Content="Message" 
+											 Classes="h2 header filterLabel" HorizontalContentAlignment="Right"
+											 Tapped="MessageLabel_Tapped">
+									<FlyoutBase.AttachedFlyout>
+										<Flyout Placement="BottomEdgeAlignedRight">
+											<TextBox Text="{Binding MessageSearch.LatestValue}" Watermark="Search Term" />
+										</Flyout>
+									</FlyoutBase.AttachedFlyout>
+								</Label>
 							</Grid>
-							<ListBox Name="MessageList" ItemsSource="{Binding MessageManager.Messages}"
+							<ListBox Name="MessageList" ItemsSource="{Binding Messages}"
 											 ItemTemplate="{StaticResource MessageGridTemplate}">
 								<interAct:Interaction.Behaviors>
 									<behave:ScrollToEndListBoxBehavior/>
@@ -195,7 +207,7 @@
 			<Button DockPanel.Dock="Right" Command="{Binding MessageManager.ClearMessages}">Clear Messages</Button>
 			<StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
 				<Label VerticalAlignment="Center" Target="{Binding #LogToggle}">Message Logging</Label>
-				<ToggleSwitch Name="LogToggle" IsChecked="{Binding MessageManager.LoggingEnabled}" IsEnabled="{Binding !Server.Listening^}" />
+				<ToggleSwitch Name="LogToggle" IsChecked="{Binding MessageManager.LoggingEnabled}" IsEnabled="{Binding !ServerManager.Server.Listening^}" />
 				<TextBlock Text="{Binding MessageManager.LogFileName}" Margin="5 0 0 0" VerticalAlignment="Center" />
 			</StackPanel>
 		</DockPanel>

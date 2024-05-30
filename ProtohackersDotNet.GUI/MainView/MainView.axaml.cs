@@ -1,5 +1,6 @@
 ﻿using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using ProtoHackersDotNet.GUI.MainView.Messages;
 
 namespace ProtoHackersDotNet.GUI.MainView;
 
@@ -17,11 +18,21 @@ public partial class MainView : UserControl
         
     }
 
-    void ComboBox_DropDownOpened(object? sender, EventArgs e) => (DataContext as MainViewModel)?.RefreshLocalIPs();
-
-    private void SourceLabel_PointerPressed(object? sender, PointerPressedEventArgs e)
+    void SourceLabel_Tapped(object? sender, TappedEventArgs e)
     {
-        if (sender != SourceLabel) return;
+        if (sender != SourceLabel) ThrowInvalidOperationException();
+        var vm = SourceLabel.DataContext as MessageManager ?? ThrowInvalidOperationException<MessageManager>();
+        if (vm.SourceFilter.Entries.Count is 0) return;
+
         FlyoutBase.ShowAttachedFlyout(SourceLabel);
+    }
+
+    void MessageLabel_Tapped(object? sender, TappedEventArgs e)
+    {
+        if (sender != MessageLabel) ThrowInvalidOperationException();
+        var vm = MessageLabel.DataContext as MessageManager ?? ThrowInvalidOperationException<MessageManager>();
+        if (vm.SourceFilter.Entries.Count is 0) return;
+
+        FlyoutBase.ShowAttachedFlyout(MessageLabel);
     }
 }

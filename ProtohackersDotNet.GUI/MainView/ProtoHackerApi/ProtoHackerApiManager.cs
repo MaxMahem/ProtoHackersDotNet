@@ -3,6 +3,7 @@ using ProtoHackersDotNet.Servers.Interface.Exceptions;
 using ProtoHackersDotNet.GUI.MainView.ProtoHackerApi.ApiMessages;
 using ProtoHackersDotNet.GUI.MainView.ProtoHackerApi.Events;
 using ProtoHackersDotNet.Servers.Interface;
+using System.Collections.Immutable;
 
 namespace ProtoHackersDotNet.GUI.MainView.ProtoHackerApi;
 
@@ -10,9 +11,6 @@ namespace ProtoHackersDotNet.GUI.MainView.ProtoHackerApi;
 /// <param name="client">Client that encapsulates getting the http interface.</param>
 public class ProtoHackerApiManager(ProtoHackerApiClient client)
 {
-    /// <summary>Provides the current running status of testing.</summary>
-    public IObservable<bool> TestRunning => TestingStatus.Select(status => status is ApiTestStatus.Running);
-
     /// <summary>Provides the current status of testing.</summary>
     public IObservable<ApiTestStatus> TestingStatus => testingStatusSubject.AsObservable();
     readonly BehaviorSubject<ApiTestStatus> testingStatusSubject = new(ApiTestStatus.NotRunning);
@@ -22,6 +20,8 @@ public class ProtoHackerApiManager(ProtoHackerApiClient client)
         get => this.testingStatusSubject.Value;
         private set => this.testingStatusSubject.OnNext(value);
     }
+
+    public ImmutableArray<string> EventSources { get; } = [client.SubmitTestUrl.ToString(), client.TestStatusUrl.ToString()];
 
     /// <summary>Tests <paramref name="server"/> against the ProtoHacker testing API.</summary>
     /// <param name="server">The server to test.</param>

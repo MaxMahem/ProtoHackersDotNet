@@ -9,12 +9,15 @@ public static class Converters
     public static FuncMultiValueConverter<object?, string> JoinConverter { get; } 
         = new(objects => string.Join(" - ", objects.Where(obj => obj is not null)));
 
-    public static FuncMultiValueConverter<object?, Brush> StatusBrushConverter { get; } =
-        new(objects => objects.ToArray() switch {
+    public static FuncMultiValueConverter<object?, Brush> StatusBrushConverter { get; } 
+        = new(objects => objects.ToArray() switch {
             [ConnectionStatus.Connected, Brush connectedBrush, _, _] => connectedBrush,
             [ConnectionStatus.Disconnected, _, Brush disconnectedBrush] => disconnectedBrush,
             [ConnectionStatus.Terminated, _, _, Brush terminatedBrush] => terminatedBrush,
             _ => (Brush) Brushes.Purple
         });
+
+    public static FuncValueConverter<int, bool> GreaterThanZeroConverter { get; } 
+        = new(number => number > 0);
 }
 

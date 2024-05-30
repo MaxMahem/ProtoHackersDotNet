@@ -1,9 +1,7 @@
 ﻿using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using ProtoHackersDotNet.GUI.MainView;
 using ProtoHackersDotNet.GUI.MainView.Client;
 using ProtoHackersDotNet.GUI.MainView.ProtoHackerApi;
@@ -12,6 +10,9 @@ using ProtoHackersDotNet.Servers.JsonPrime;
 using ProtoHackersDotNet.Servers.PriceTracker;
 using System.Net.Http.Headers;
 using ProtoHackersDotNet.Servers.BudgetChat;
+using ProtoHackersDotNet.GUI.MainView.Server;
+using ProtoHackersDotNet.GUI.MainView.Messages;
+using ProtoHackersDotNet.GUI.Serialization;
 
 namespace ProtoHackersDotNet.GUI;
 
@@ -27,13 +28,12 @@ public partial class App : Application
         Name = AppName;
 
         var serviceProvider = ConfigureServices(new ServiceCollection()).BuildServiceProvider();
-        var mainVM = serviceProvider.GetService<MainViewModel>() ?? ThrowHelper.ThrowArgumentNullException<MainViewModel>();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) {
-            desktop.MainWindow = new MainWindow { DataContext = mainVM };
-            desktop.Exit += mainVM.OnExit;
+            desktop.MainWindow = serviceProvider.GetService<MainWindow>();
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform) {
+            var mainVM = serviceProvider.GetService<MainViewModel>();
             singleViewPlatform.MainView = new MainView.MainView { DataContext = mainVM };
         }
 
@@ -42,27 +42,41 @@ public partial class App : Application
 
     static IServiceCollection ConfigureServices(IServiceCollection services)
     {
+        // http options.
         var userAgent = ProductInfoHeaderValue.Parse($"{AppName}/{Version}");
         services.AddSingleton(userAgent)
                 .AddHttpClient<ProtoHackerApiClient>(client => client.DefaultRequestHeaders.UserAgent.Add(userAgent));
 
+        // configuration options
         var config = new ConfigurationBuilder().SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                                                .AddJsonFile("appsettings.json", optional: false)
-                                               .AddJsonFile(MainViewModelOptions.SETTINGS_PATH, optional: true).Build();
+                                               .AddJsonFile(StateSaver.SETTINGS_PATH, optional: true).Build();
 
         services.AddOptions<ProtoHackerApiClientOptions>().Bind(config.GetSection(nameof(ProtoHackerApiClientOptions)));
-        services.AddOptions<MainViewModelOptions>().Bind(config.GetSection(nameof(MainViewModelOptions)));
+        services.AddOptions<ServerManagerState>().Bind(config.GetSection(nameof(ServerManagerState)));
         services.AddOptions<ClientManagerOptions>().Bind(config.GetSection(nameof(ClientManagerOptions)));
         services.AddOptions<BudgetChatServerOptions>().Bind(config.GetSection(nameof(BudgetChatServerOptions)));
+        services.AddSingleton<StateSaver>();
 
+        services.AddSingleton(config);
+
+        // servers
         services.AddSingleton<IServer<IClient>, EchoServer>()
                 .AddSingleton<IServer<IClient>, JsonPrimeServer>()
                 .AddSingleton<IServer<IClient>, PriceTrackerServer>()
                 .AddSingleton<IServer<IClient>, BudgetChatServer>();
-        
-        return services.AddSingleton(config)
-                       .AddSingleton<ProtoHackerApiManager>()
+
+        // view elements
+        services.AddSingleton<MainWindow>();
+
+        // VM elements
+        return services.AddSingleton<ProtoHackerApiManager>()
                        .AddSingleton<MainViewModel>()
-                       .AddSingleton<ClientManager>();
+                       .AddSingleton<ClientManager>()
+                       .AddSingleton<ServerManager>()
+                       .AddSingleton<MessageManager>()
+                       .AddSingleton<StartServerCommand>()
+                       .AddSingleton<ClearLogCommand>()
+                       .AddSingleton<TestServerCommand>();
     }
 }
