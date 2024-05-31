@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 
-namespace ProtoHackersDotNet.GUI.Helpers;
+namespace ProtoHackersDotNet.Helpers;
 
 public static class IDisposableHelper
 {

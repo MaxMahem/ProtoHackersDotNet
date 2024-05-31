@@ -12,10 +12,17 @@ global using System.Text.Json.Serialization;
 global using System.Text.RegularExpressions;
 global using System.Threading;
 global using System.Threading.Tasks;
+
+global using DynamicData;
+
 global using Avalonia;
 global using Avalonia.Controls;
+
 global using static CommunityToolkit.Diagnostics.ThrowHelper;
-global using ProtoHackersDotNet.GUI.Helpers;
+
+global using ProtoHackersDotNet.Helpers;
+global using ProtoHackersDotNet.Helpers.ObservableTypes;
 global using ProtoHackersDotNet.Servers.Interface;
 global using ProtoHackersDotNet.Servers.Interface.Server;
 global using ProtoHackersDotNet.Servers.Interface.Client;
+global using ProtoHackersDotNet.Servers.Interface.Exceptions;

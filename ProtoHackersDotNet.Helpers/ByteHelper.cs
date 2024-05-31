@@ -1,4 +1,4 @@
-﻿namespace ProtoHackersDotNet.Servers.PriceTracker;
+﻿namespace ProtoHackersDotNet.Helpers;
 
 public static class ByteHelper
 {

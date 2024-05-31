@@ -1,4 +1,8 @@
-﻿namespace ProtoHackersDotNet.GUI.Helpers;
+﻿using System.Net;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace ProtoHackersDotNet.Helpers;
 
 public class IPAddressConverter : JsonConverter<IPAddress>
 {

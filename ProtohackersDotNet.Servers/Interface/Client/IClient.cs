@@ -13,7 +13,6 @@ public interface IClient : IDisposable
 
     /// <summary>The remote location this client connects to.</summary>
     IPEndPoint ClientEndPoint { get; }
-    DateTimeOffset ConnectedAt { get; }
     ConnectionStatus LatestConnectionStatus { get; }
     IObservable<ConnectionStatus> ConnectionStatus { get; }
     IObservable<string?> Status { get; }

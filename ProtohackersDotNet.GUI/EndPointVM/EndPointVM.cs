@@ -1,17 +1,18 @@
 ﻿using ProtoHackersDotNet.GUI.EndPointVM;
+using ProtoHackersDotNet.Helpers;
 
 namespace ProtoHackersDotNet.GUI.MainView;
 
 public abstract class EndPointVM(IPAddress? ip, ushort? port)
 {
-    readonly ValidateableProperty<ushort?> observablePort = ValidateableProperty<ushort?>.NotNull(port);
+    readonly ValidateableValue<ushort?> observablePort = ValidateableValue<ushort?>.NotNull(port);
     public ushort? Port {
         get => this.observablePort.Value;
         set => this.observablePort.Value = value;
     }
     public IObservable<bool> PortValid => this.observablePort.Valid;
 
-    readonly ValidateableProperty<IPAddress?> validateableIP = ValidateableProperty<IPAddress?>.NotNull(ip);
+    readonly ValidateableValue<IPAddress?> validateableIP = ValidateableValue<IPAddress?>.NotNull(ip);
     public virtual IPAddress? IP {
         get => this.validateableIP.Value;
         set => this.validateableIP.Value = value;

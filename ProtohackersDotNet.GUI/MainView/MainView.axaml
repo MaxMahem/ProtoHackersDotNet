@@ -19,21 +19,21 @@
   <Design.DataContext>
     <!--<mv:MainViewModel />-->
   </Design.DataContext>
-	<Grid ColumnDefinitions="*, 1, 4*, 0" RowDefinitions="*, auto" Name="MainGrid">
-		<DockPanel Name="ServerData" Grid.Column="0" Grid.Row="0" DataContext="{Binding ServerManager}">
-			<DockPanel DockPanel.Dock="Top" Name="ServerSelect">
-				<Label DockPanel.Dock="Left" Target="{Binding #TypeDropdown}" Classes="h1">Server</Label>
-				<ComboBox Name="TypeDropdown" HorizontalAlignment="Right"
-									ItemsSource="{Binding Servers}" SelectedItem="{Binding Server}"
-									IsEnabled="{Binding !Server.Listening^}">
-					<ComboBox.ItemTemplate>
-						<DataTemplate>
-							<TextBlock Text="{Binding Name}"/>
-						</DataTemplate>
-					</ComboBox.ItemTemplate>
-				</ComboBox>
-			</DockPanel>
-			<StackPanel DockPanel.Dock="Bottom" Name="EndPointTabs">
+	<Grid ColumnDefinitions="*, 1, 4*, 0" RowDefinitions="auto, *, auto" Name="MainGrid">
+		<DockPanel Name="ServerSelect" Grid.Column="0" Grid.Row="0" DataContext="{Binding ServerManager}">
+			<Label DockPanel.Dock="Left" Target="{Binding #TypeDropdown}" Classes="h1">Server</Label>
+			<ComboBox Name="TypeDropdown" HorizontalAlignment="Right"
+								ItemsSource="{Binding Servers}" SelectedItem="{Binding Server}"
+								IsEnabled="{Binding !Server.Listening^}">
+				<ComboBox.ItemTemplate>
+					<DataTemplate>
+						<TextBlock Text="{Binding Name}"/>
+					</DataTemplate>
+				</ComboBox.ItemTemplate>
+			</ComboBox>
+		</DockPanel>
+		<DockPanel Name="ServerData" Grid.Column="0" Grid.Row="1" DataContext="{Binding ServerManager}">
+			<StackPanel Name="EndPointTabs" DockPanel.Dock="Bottom">
 				<TabControl Name="LocalRemote">
 					<TabItem Header="Local">
 						<Grid ColumnDefinitions="1*, 2*" RowDefinitions="auto, auto">
@@ -75,7 +75,7 @@
 				</TabControl>
 			</StackPanel>
 			<Border Name="DescriptionBorder" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" BorderThickness="1" CornerRadius="3">
-				<md:MarkdownScrollViewer Markdown="{Binding Server.Problem.Description}">
+				<md:MarkdownScrollViewer Markdown="{Binding Server.Solution.Description}">
 					<md:MarkdownScrollViewer.Styles>
 						<Style Selector="ctxt|CTextBlock.Heading1">
 							<Setter Property="FontSize" Value="18"/>
@@ -94,8 +94,8 @@
 				</md:MarkdownScrollViewer>
 			</Border>
 		</DockPanel>
-		<UniformGrid Name="MainControl" DataContext="{Binding ServerManager}" 
-								 Grid.Column="0" Grid.Row="1" Columns="4">
+		<UniformGrid Name="MainControl" Grid.Column="0" Grid.Row="2" 
+								 Columns="4" DataContext="{Binding ServerManager}">
 			<li:LoadingIndicator Name="LoadingIndicator" Mode="Wave" SpeedRatio="1.0"
 													 IsActive="{Binding TestServerCommand.TestRunning^}"
 													 MinWidth="0" Width="{Binding #TestButton.Bounds.Width}"
@@ -123,8 +123,19 @@
 			</Button>
 		</UniformGrid>
 		<GridSplitter Grid.Column="1" ResizeDirection="Columns" MinWidth="2" Margin="5 5"/>
-		<Grid Grid.Column="2" Grid.Row="0" ColumnDefinitions="*" RowDefinitions="Auto, 1, *" Name="RightGrid">
-			<Expander Grid.Column="0" Grid.Row="0" Name="ClientExpander" HorizontalAlignment="Stretch"
+		<DockPanel Name="ServerStatus" Grid.Column="2" Grid.Row="0">
+			<TextBlock Classes="h2" VerticalAlignment="Center">
+				<TextBlock.Text>
+					<MultiBinding Converter="{x:Static mv:Converters.JoinConverter}">
+						<Binding Path="ServerManager.Server.ServerStatus^" />
+						<Binding Path="ServerManager.Server.Status^" />
+					</MultiBinding>
+				</TextBlock.Text>
+			</TextBlock>
+		</DockPanel>
+		<Grid Name="RightGrid" Grid.Column="2" Grid.Row="1"
+					RowDefinitions="Auto, 1, *">
+			<Expander Grid.Row="0" Name="ClientExpander" HorizontalAlignment="Stretch"
 								MinHeight="0" Padding="0" Classes="client" MaxHeight="{Binding #MaxExpander.Bounds.Height}"
 								DataContext="{Binding ClientManager}"
 								Header="{Binding ActiveClientCount^, StringFormat='Clients (Active {0})'}">
@@ -151,8 +162,8 @@
 					</Border>
 				</DockPanel>
 			</Expander>
-			<GridSplitter Grid.Column="0" Grid.Row="1"></GridSplitter>
-			<DockPanel Grid.Column="0" Grid.Row="2" DataContext="{Binding MessageManager}">
+			<GridSplitter Grid.Row="2"></GridSplitter>
+			<DockPanel Grid.Row="3" DataContext="{Binding MessageManager}">
 				<TextBlock DockPanel.Dock="Top" Margin="16 8 0 8" Classes="h2"
 									 Text="{Binding MessageCount^, StringFormat='Messages ({0})'}" />
 				<Border BorderThickness="1" CornerRadius="0 0 3 3"
@@ -170,14 +181,14 @@
 											 Tapped="SourceLabel_Tapped">
 									<FlyoutBase.AttachedFlyout>
 										<Flyout Placement="BottomEdgeAlignedLeft">
-											<ItemsControl ItemsSource="{Binding SourceFilter.Entries}"
-															 Classes="filterList">
-												<ItemsControl.ItemTemplate>
-													<DataTemplate>
-														<CheckBox Content="{Binding Entry}" IsChecked="{Binding Selected}" Classes="filterItem"/>
-													</DataTemplate>
-												</ItemsControl.ItemTemplate>
-											</ItemsControl>
+												<ItemsControl ItemsSource="{Binding SourceFilter.Entries}"
+																 Classes="filterList">
+													<ItemsControl.ItemTemplate>
+														<DataTemplate>
+															<CheckBox Content="{Binding Entry}" IsChecked="{Binding Selected}" Classes="filterItem"/>
+														</DataTemplate>
+													</ItemsControl.ItemTemplate>
+												</ItemsControl>
 										</Flyout>
 									</FlyoutBase.AttachedFlyout>
 								</Label>
@@ -203,7 +214,7 @@
 				</Border>
 			</DockPanel>
 		</Grid>
-		<DockPanel Name="MessageControls" Grid.Column="2" Grid.Row="1">
+		<DockPanel Name="MessageControls" Grid.Column="2" Grid.Row="2">
 			<Button DockPanel.Dock="Right" Command="{Binding MessageManager.ClearMessages}">Clear Messages</Button>
 			<StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
 				<Label VerticalAlignment="Center" Target="{Binding #LogToggle}">Message Logging</Label>

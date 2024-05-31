@@ -20,8 +20,12 @@ global using System.Threading;
 global using System.Threading.Tasks;
 
 global using CommunityToolkit.Diagnostics;
+global using static CommunityToolkit.Diagnostics.ThrowHelper;
 
 global using ByteSizeLib;
+
+global using ProtoHackersDotNet.Helpers;
+
 global using ProtoHackersDotNet.Servers.Helpers;
 global using ProtoHackersDotNet.Servers.TcpServer;
 global using ProtoHackersDotNet.Servers.Interface;

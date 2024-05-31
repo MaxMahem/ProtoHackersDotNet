@@ -3,8 +3,10 @@
 public sealed partial class PriceTrackerClient(PriceTrackerServer server, TcpClient client, CancellationToken token)
     : TcpClientBase<PriceTrackerServer>(server, client, token)
 {
-    readonly List<PriceMessage> priceHistory = [];
+    readonly ObservableValueList<PriceMessage> priceHistory = [];
     readonly byte[] response = new byte[sizeof(int)];
+
+    public override IObservable<string?> Status => this.priceHistory.CurrentCount.Select(count => $"{count} entries");
 
     protected override SequencePosition? FindLineEnd(ReadOnlySequence<byte> buffer)
         => buffer.Length < PriceMessage.MESSAGE_LENGTH ? null : buffer.GetPosition(PriceMessage.MESSAGE_LENGTH);
@@ -16,7 +18,6 @@ public sealed partial class PriceTrackerClient(PriceTrackerServer server, TcpCli
         switch (priceMessage) {
             case { Type: PriceMessageType.Insert } insertMessage:
                 this.priceHistory.Add(insertMessage);
-                LatestStatus = $"{this.priceHistory.Count} entries";
                 break;
             case { Type: PriceMessageType.Query } queryMessage:
                 int average = AveragePrice(queryMessage);
@@ -47,7 +48,8 @@ public sealed partial class PriceTrackerClient(PriceTrackerServer server, TcpCli
         return $"{quotient} {messageWord} ({partialWord}{buffer.ToByteSize()})";
     }
 
-    readonly struct QueryResponse(ReadOnlyMemory<byte> data, DateTimeOffset min, DateTimeOffset max, int average) : ITransmission
+    readonly struct QueryResponse(ReadOnlyMemory<byte> data, DateTimeOffset min, DateTimeOffset max, int average) 
+        : ITransmission
     {
         public ReadOnlyMemory<byte> Data => data;
         public string Translation => $"Average price from {min:u} to {max:u}: {average/100.0:N2}";

@@ -32,7 +32,7 @@ public sealed partial class PriceTrackerClient
         public override string ToString() => Type switch {
             PriceMessageType.Query => $"Query {{ MinTime: {MinDateUtc:u}, MaxTime: {MaxDateUtc:u} }}",
             PriceMessageType.Insert => $"Insert {{ Timestamp: {TimestampUtc:u}, Price: {Price} }}",
-            _ => ThrowHelper.ThrowInvalidOperationException<string>($"Invalid Type ({Type})")
+            _ => ThrowInvalidOperationException<string>($"Invalid Type ({Type})")
         };
 
         public int Timestamp => Int1;

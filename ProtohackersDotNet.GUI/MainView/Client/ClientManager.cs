@@ -28,7 +28,9 @@ public sealed class ClientManager
     public void ClearDisconnectedClients()
     {
         for (int index = Clients.Count - 1; index >= 0; index--)
-            if (Clients[index].Client.LatestConnectionStatus is not ConnectionStatus.Connected)
+            if (Clients[index].Client is { LatestConnectionStatus: not ConnectionStatus.Connected } client) {
                 Clients.RemoveAt(index);
+                client.Dispose();
+            }
     }
 }

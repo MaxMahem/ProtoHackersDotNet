@@ -1,8 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using System.Net.Http;
+﻿using System.Net.Http;
 using System.Net.Http.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using ProtoHackersDotNet.GUI.MainView.ProtoHackerApi.ApiMessages;
 
@@ -12,8 +9,9 @@ namespace ProtoHackersDotNet.GUI.MainView.ProtoHackerApi;
 /// <param name="client">Client used to call ProtoHacker api. Uses cookies and should live as long as a session does.</param>
 public class ProtoHackerApiClient(HttpClient client, IOptions<ProtoHackerApiClientOptions> options)
 {
-    public Uri SubmitTestUrl { get; } = options.Value.SubmitTestUrl; 
-    public Uri TestStatusUrl { get; } = options.Value.TestStatusUrl;
+    public Uri BaseAddress { get; } = options.Value.BaseAddress;
+    readonly Uri submitTestUrl = new(options.Value.BaseAddress, options.Value.SubmitTestUrl); 
+    readonly Uri testStatusUrl = new(options.Value.BaseAddress, options.Value.TestStatusUrl);
 
     readonly TimeSpan pollingInterval = options.Value.PollingInterval;
 
@@ -25,8 +23,8 @@ public class ProtoHackerApiClient(HttpClient client, IOptions<ProtoHackerApiClie
     /// <returns>An observable that tracks responses from the server.</returns>
     public IObservable<ApiCheckResponse> PollTestStatus()
     {
-        LastAccessedUrl = TestStatusUrl;
-        return Observable.FromAsync((token) => client.GetFromJsonAsync(TestStatusUrl, ApiTestsMetadata.Default.ApiCheckResponse, token))
+        LastAccessedUrl = testStatusUrl;
+        return Observable.FromAsync((token) => client.GetFromJsonAsync(testStatusUrl, ApiTestsMetadata.Default.ApiCheckResponse, token))
                          .Select(response => response?.Status is ResponseStatus.Ok ? response : ThrowResponseError<ApiCheckResponse>())
                          .Repeat().Delay(this.pollingInterval).TakeWhileInclusive(response => response?.CheckStatus is CheckStatus.Checking);
     }
@@ -37,14 +35,14 @@ public class ProtoHackerApiClient(HttpClient client, IOptions<ProtoHackerApiClie
     /// <returns></returns>
     public async Task<TestRequestApiResponse> RequestTesting(IServer server, IPEndPoint endPoint, CancellationToken token)
     {
-        LastAccessedUrl = SubmitTestUrl;
+        LastAccessedUrl = submitTestUrl;
         TestApiRequest apiTestRequest = new(){
-            Problem = server.Problem.Id,
+            Problem = server.Solution.Id,
             Ip = endPoint.Address,
             Port = (ushort) endPoint.Port,
         };
 
-        var requestHttpResponse = await client.PostAsJsonAsync(SubmitTestUrl, apiTestRequest,
+        var requestHttpResponse = await client.PostAsJsonAsync(submitTestUrl, apiTestRequest,
                 ApiTestsMetadata.Default.TestApiRequest, token);
         var requestApiResponse = await requestHttpResponse.EnsureSuccessStatusCode().Content.ReadFromJsonAsync(
                 ApiTestsMetadata.Default.TestRequestApiResponse, token);

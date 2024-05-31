@@ -1,4 +1,4 @@
-﻿namespace ProtoHackersDotNet.Servers.Helpers;
+﻿namespace ProtoHackersDotNet.Helpers;
 
 public static class IEnumerableHelper
 {

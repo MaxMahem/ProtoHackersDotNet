@@ -10,7 +10,7 @@ public sealed partial class ServerManager : ObservableValidator, IStateSaveable<
 {
     [ObservableProperty]
     IServer<IClient> server;
-
+    
     public ObservableCollection<IServer<IClient>> Servers { get; }
 
     public SelectableEndPoint LocalEndPoint { get; }
@@ -27,7 +27,7 @@ public sealed partial class ServerManager : ObservableValidator, IStateSaveable<
         this.server = Servers.FirstOrDefault(server => server.Name.Value == options.Value.Server, Servers.First());
 
         // this should trigger all our server descriptions to load lazily.
-        _ = Task.WhenAll(Servers.Select(server => Task.Run(() => _ = server.Problem.Description)));
+        _ = Task.WhenAll(Servers.Select(server => Task.Run(() => _ = server.Solution.Description)));
 
         var localIP = SystemIPs.FirstOrDefault(ip => ip.ToString() == options.Value?.LocalEndPoint?.IP, IPAddress.Any);
         LocalEndPoint = new(SystemIPs, localIP, options.Value?.LocalEndPoint?.Port);

@@ -1,27 +1,35 @@
 ﻿using ProtoHackersDotNet.AsciiString;
+using IConnectionStatus = ProtoHackersDotNet.Servers.Interface.Client.ConnectionStatus;
+using ProtoHackersDotNet.Helpers.ObservableTypes;
 
 namespace ProtoHackersDotNet.Servers.BudgetChat;
 
 public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, CancellationToken token)
     : TcpClientBase<BudgetChatServer>(server, client, token)
 {
-    readonly static byte[] WhiteSpace = [(byte) ' ', (byte) '\n'];
+    readonly static ImmutableArray<byte> WhiteSpace = [(byte) ' ', (byte) '\n'];
 
-    public BudgetChatClientState State { get; private set; } = BudgetChatClientState.Welcome;
+    readonly ObservableValue<BudgetChatClientState> stateObserver = new(BudgetChatClientState.Welcome);
 
     public AsciiName? UserName { get; private set; } = null;
+
+    readonly TaskCompletionSource joinedCompleteSource = new();
+    public Task Joined => this.joinedCompleteSource.Task;
+
+    public override IObservable<string?> Status => this.stateObserver.Values.Select(
+        state => UserName is not null ? $"{state}: '{UserName}'" : state.ToString());
 
     #region On Overloads
 
     protected override async Task OnConnect(CancellationToken token)
     {
         await Transmit(Server.WelcomeMessage.ToTransmission(false));
-        State = BudgetChatClientState.Welcome;
+        this.stateObserver.LatestValue = BudgetChatClientState.Welcome;
     }
 
     protected override async Task OnException(Exception exception, CancellationToken token)
     {
-        if (LatestConnectionStatus is Interface.Client.ConnectionStatus.Connected) {
+        if (LatestConnectionStatus is IConnectionStatus.Connected) {
             ascii ascii = new(exception.Message + '\n');
             await Transmit(ascii.ToTransmission(false));
         }
@@ -30,31 +38,29 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
 
     protected override async Task OnDisconnect(CancellationToken token)
     {
-        if (State == BudgetChatClientState.Joined)
+        if (this.stateObserver.LatestValue == BudgetChatClientState.Joined)
             await Server.BroadcastPart(this);
-        State = BudgetChatClientState.Parted;
+        this.stateObserver.LatestValue = BudgetChatClientState.Parted;
     }
-
     #endregion
 
     protected override async Task ProcessLine(ReadOnlySequence<byte> line)
     {
         try {
             // Trim any trailing whitespace from the sequence. 
-            var lastPosition = line.LastPositionOfAnyExcept(WhiteSpace)
-            ?? ThrowHelper.ThrowInvalidOperationException<SequencePosition>("There should always be a line ending to trim");
+            var lastPosition = line.LastPositionOfAnyExcept(WhiteSpace.AsSpan())
+                ?? ThrowInvalidOperationException<SequencePosition>("There should always be a line ending to trim");
             line = line.Slice(line.Start, line.GetPosition(1, lastPosition)); // slice is *exclusive* of the end, we want inclusive.
 
             ascii asciiLine = new(line);
 
-            switch (State) {
+            switch (this.stateObserver.LatestValue) {
                 case BudgetChatClientState.Welcome:
                     var userName = AsciiName.From(asciiLine);
                     UserName = Server.ValidateName(userName);
 
-                    State = BudgetChatClientState.Joined;
-                    LatestStatus = $"Joined: {UserName}";
-
+                    this.stateObserver.LatestValue = BudgetChatClientState.Joined;
+                    this.joinedCompleteSource.SetResult();
                     await Server.BroadcastJoin(this);
 
                     await Transmit(Server.GetPresentNotice(this).ToTransmission(false));
@@ -62,11 +68,12 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
                 case BudgetChatClientState.Joined:
                     await Server.BroadcastChat(this, line);
                     break;
-                default: throw new InvalidOperationException();
+                default: 
+                    throw new InvalidOperationException();
             }
         }
         catch (Exception exception) when (exception is not InvalidOperationException) {
-            throw new ClientException(exception) { Client = this };
+            ClientException.Throw(exception, this);
         }
     }
 

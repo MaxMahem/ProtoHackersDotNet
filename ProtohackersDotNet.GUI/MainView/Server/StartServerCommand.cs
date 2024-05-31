@@ -11,14 +11,14 @@ public class StartServerCommand(ClientManager clientManager, MessageManager mess
     {
         var serverEvents = server.Start(serverEndpoint);
         serverEvents.OfType<ClientConnectionEvent>().Subscribe(SubscribeClient, Stub.IgnoreError).DiscardDisposable();
-        messageManager.SubscribeToStream(serverEvents, MessageVM.FromSeverEvent, server.Name.Value);
+        messageManager.SubscribeToStream(EventSource<ServerEvent>.FromServer(server, serverEvents));
         serverEvents.Connect().DiscardDisposable();
 
         void SubscribeClient(ClientConnectionEvent clientEvent)
         {
             clientManager.AddClient(clientEvent.Client);
-            messageManager.SubscribeToStream(clientEvent.Client.Events, MessageVM.FromClientEvent,
-                clientEvent.Client.ClientEndPoint.ToString(), clientEvent.Client.Server.LocalEndPoint!.ToString());
+            messageManager.SubscribeToStream(EventSource<ServerEvent>.FromClient(clientEvent.Client, 
+                clientEvent.Client.Events));
         }
     }
 }

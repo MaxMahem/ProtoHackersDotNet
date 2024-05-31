@@ -23,6 +23,7 @@
     <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.0.10" />
     <PackageReference Include="DynamicData" Version="8.4.1" />
     <PackageReference Include="LoadingIndicators.Avalonia" Version="11.0.10" />
+    <PackageReference Include="Markdown.Avalonia.SyntaxHigh" Version="11.0.2" />
     <PackageReference Include="Markdown.Avalonia.Tight" Version="11.0.2" />
     <PackageReference Include="Material.Icons.Avalonia" Version="2.1.9" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
@@ -31,6 +32,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ProtoHackersDotNet.Helpers\ProtoHackersDotNet.Helpers.csproj" />
     <ProjectReference Include="..\ProtohackersDotNet.Servers\ProtoHackersDotNet.Servers.csproj" />
   </ItemGroup>
 
@@ -47,5 +49,9 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Helpers\" />
   </ItemGroup>
 </Project>

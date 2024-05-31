@@ -1,25 +1,27 @@
-﻿using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Markup.Xaml;
+﻿using System.Net.Http;
+using System.Net.Http.Headers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using ProtoHackersDotNet.GUI.MainView;
-using ProtoHackersDotNet.GUI.MainView.Client;
-using ProtoHackersDotNet.GUI.MainView.ProtoHackerApi;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Markup.Xaml;
 using ProtoHackersDotNet.Servers.Echo;
 using ProtoHackersDotNet.Servers.JsonPrime;
 using ProtoHackersDotNet.Servers.PriceTracker;
-using System.Net.Http.Headers;
 using ProtoHackersDotNet.Servers.BudgetChat;
-using ProtoHackersDotNet.GUI.MainView.Server;
+using ProtoHackersDotNet.GUI.MainView;
+using ProtoHackersDotNet.GUI.MainView.Client;
 using ProtoHackersDotNet.GUI.MainView.Messages;
+using ProtoHackersDotNet.GUI.MainView.ProtoHackerApi;
+using ProtoHackersDotNet.GUI.MainView.Server;
 using ProtoHackersDotNet.GUI.Serialization;
 
 namespace ProtoHackersDotNet.GUI;
 
-public partial class App : Application
+public class App : Application
 {
-    public static readonly Version Version = new(1, 1);
     public const string AppName = "ProtoHackersDotNet";
+    public static readonly Version Version = new(1, 1);
+    static readonly ProductInfoHeaderValue UserAgent = ProductInfoHeaderValue.Parse($"{AppName}/{Version}");
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -42,23 +44,27 @@ public partial class App : Application
 
     static IServiceCollection ConfigureServices(IServiceCollection services)
     {
-        // http options.
-        var userAgent = ProductInfoHeaderValue.Parse($"{AppName}/{Version}");
-        services.AddSingleton(userAgent)
-                .AddHttpClient<ProtoHackerApiClient>(client => client.DefaultRequestHeaders.UserAgent.Add(userAgent));
-
         // configuration options
         var config = new ConfigurationBuilder().SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                                                .AddJsonFile("appsettings.json", optional: false)
                                                .AddJsonFile(StateSaver.SETTINGS_PATH, optional: true).Build();
 
-        services.AddOptions<ProtoHackerApiClientOptions>().Bind(config.GetSection(nameof(ProtoHackerApiClientOptions)));
+        var protoHackerApiSection = config.GetSection(nameof(ProtoHackerApiClientOptions));
+        services.AddOptions<ProtoHackerApiClientOptions>().Bind(protoHackerApiSection);
         services.AddOptions<ServerManagerState>().Bind(config.GetSection(nameof(ServerManagerState)));
         services.AddOptions<ClientManagerOptions>().Bind(config.GetSection(nameof(ClientManagerOptions)));
         services.AddOptions<BudgetChatServerOptions>().Bind(config.GetSection(nameof(BudgetChatServerOptions)));
         services.AddSingleton<StateSaver>();
 
         services.AddSingleton(config);
+
+        // http options.
+        services.AddHttpClient<ProtoHackerApiClient>(ConfigureClient);
+        void ConfigureClient(HttpClient client)
+        {
+            client.DefaultRequestHeaders.UserAgent.Add(UserAgent);
+            client.BaseAddress = protoHackerApiSection.GetValue<Uri>("BaseAddress");
+        }
 
         // servers
         services.AddSingleton<IServer<IClient>, EchoServer>()

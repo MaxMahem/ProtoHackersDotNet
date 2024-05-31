@@ -59,6 +59,7 @@
 		<Setter Property="Padding" Value="12 4 2 4"/>
 	</Style>
 
+	<!-- Error borders -->
 	<Style Selector="TextBox.invalid /template/ Border#PART_BorderElement">
 		<Setter Property="BorderBrush" Value="{DynamicResource SystemControlErrorTextForegroundBrush}"/>
 	</Style>
@@ -90,7 +91,6 @@
 		<Setter Property="FontFamily" Value="{StaticResource Monospace}"/>
 		<Setter Property="VerticalAlignment" Value="Center"/>
 	</Style>
-
 	<Style Selector="TextBlock.mono">
 		<Setter Property="FontFamily" Value="{StaticResource Monospace}"/>
 		<Setter Property="TextAlignment" Value="Right" />
@@ -106,24 +106,29 @@
 		<Setter Property="Margin" Value="4 4 0 0" />
 	</Style>
 
-	<Style Selector="Expander">
+	<!-- custom style for client expander -->
+	<Style Selector="Expander#ClientExpander">
 		<Setter Property="Background" Value="{DynamicResource SystemRegionBrush}" />
 		<Setter Property="BorderThickness" Value="0" />
 	</Style>
-	<Style Selector="Expander /template/ ToggleButton#ExpanderHeader /template/ Border#ToggleButtonBackground">
+	<Style Selector="Expander#ClientExpander /template/ ToggleButton#ExpanderHeader /template/ Border#ToggleButtonBackground">
 		<Setter Property="Background" Value="Transparent" />
 	</Style>
-	<Style Selector="Expander:down /template/ Border#ExpanderContent">
+	<Style Selector="Expander#ClientExpander:down /template/ Border#ExpanderContent">
 		<Setter Property="BorderThickness" Value="0" />
 	</Style>
-	<Style Selector="Expander /template/ ToggleButton#ExpanderHeader">
+	<Style Selector="Expander#ClientExpander /template/ ToggleButton#ExpanderHeader">
 		<Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
 	</Style>
-	<Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pointerover /template/ Border#ToggleButtonBackground">
+	<Style Selector="Expander#ClientExpander /template/ ToggleButton#ExpanderHeader:pointerover /template/ Border#ToggleButtonBackground">
 		<Setter Property="Background" Value="{DynamicResource SystemControlHighlightListLowBrush}" />
 	</Style>
-	<Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pointerover /template/ Border#ToggleButtonBackground">
+	<Style Selector="Expander#ClientExpander /template/ ToggleButton#ExpanderHeader:pointerover /template/ Border#ToggleButtonBackground">
 		<Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+	</Style>
+	<!-- Minimize expander title margin -->
+	<Style Selector="Expander#ClientExpander /template/ ToggleButton#ExpanderHeader /template/ ContentPresenter#PART_ContentPresenter">
+		<Setter Property="Margin" Value="8 0 0 0" />
 	</Style>
 
 	<Style Selector="Label.header">
@@ -159,7 +164,7 @@
 		<Setter Property="Background" Value="Transparent" />
 		<Setter Property="BorderThickness" Value="0" />
 	</Style>
-	<Style Selector="ListBox#MessageList ListBoxItem">
+	<Style Selector="ListBox ListBoxItem">
 		<Setter Property="Padding" Value="8 2 8 2" />
 	</Style>
 	<Style Selector="ListBox#MessageList icons|MaterialIcon">

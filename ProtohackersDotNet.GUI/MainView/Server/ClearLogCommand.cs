@@ -10,4 +10,9 @@ public class ClearLogCommand(ClientManager clientManager, MessageManager message
         clientManager.ClearDisconnectedClients();
         messageManager.ClearMessages();
     }
+
+    public void ClearMessages()
+    {
+        messageManager.ClearMessages();
+    }
 }

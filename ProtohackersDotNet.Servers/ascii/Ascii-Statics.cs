@@ -5,11 +5,11 @@
 public readonly partial struct ascii
 #pragma warning restore CS8981
 {
-    /// <summary>Creates a new Ascii, seperated by <paramref name="delimiter"/> by joining the Asciis in 
+    /// <summary>Creates a new Ascii, separated by <paramref name="delimiter"/> by joining the Asciis in 
     /// <paramref name="asciis"/>.</summary>
-    /// <param name="delimiter">The delimiter to seperate <paramref name="asciis"/> by.</param>
+    /// <param name="delimiter">The delimiter to separate <paramref name="asciis"/> by.</param>
     /// <param name="asciis">An enumeration of ascii to join.</param>
-    /// <returns>A new Ascii, made up of <paramref name="asciis"/> seperated by <paramref name="delimiter"/>.</returns>
+    /// <returns>A new Ascii, made up of <paramref name="asciis"/> separated by <paramref name="delimiter"/>.</returns>
     public static ascii Join(ascii delimiter, IEnumerable<ascii> asciis)
     {
         using var enumerator = asciis.GetEnumerator();

@@ -1,4 +1,6 @@
-﻿namespace ProtoHackersDotNet.Servers.Helpers;
+﻿using System.Threading;
+
+namespace ProtoHackersDotNet.Helpers;
 
 public static class CTSHelper
 {

@@ -1,4 +1,6 @@
-﻿namespace ProtoHackersDotNet.GUI.Helpers;
+﻿using System.Reactive.Linq;
+
+namespace ProtoHackersDotNet.Helpers;
 
 public static class IObservableHelper
 {

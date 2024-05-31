@@ -3,12 +3,10 @@
 public abstract class ServerEvent(IServer server) : IDisplayEvent
 {
     public ServerName ServerName { get; } = server.Name;
-    public Problem Problem { get; } = server.Problem;
+    public Problem Problem { get; } = server.Solution;
     public IServer Server { get; } = server;
     public EndPoint? EndPoint { get; } = server.LocalEndPoint;
-    public virtual string Source { get; } = server.LocalEndPoint?.ToString() ?? server.Name.ToString();
-    public virtual string? Destination { get; }
-    public DateTimeOffset Timestamp { get; } = DateTimeOffset.UtcNow;
+    public string Source { get; } = server.Name.ToString();
 
     public abstract ServerEventType EventType { get; }
     public abstract string Type { get; }

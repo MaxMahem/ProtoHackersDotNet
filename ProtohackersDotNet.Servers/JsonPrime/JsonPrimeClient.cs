@@ -30,7 +30,7 @@ protected override string TranslateReception(ReadOnlySequence<byte> buffer)
     {
         var jsonReader = new Utf8JsonReader(line);
         return JsonSerializer.Deserialize(ref jsonReader, JsonPrimeMetaData.Default.PrimeQuery).Validate()
-            ?? throw new JsonException("Invalid Query");
+            ?? ThrowJsonException<PrimeQuery>("Invalid Query");
     }
 
     readonly static CachedUtf8Response Malformed = new("malformed" + (char) LINE_DELIMITER);
@@ -38,4 +38,7 @@ protected override string TranslateReception(ReadOnlySequence<byte> buffer)
         = new(JsonSerializer.Serialize(PrimeResponse.True,  JsonPrimeMetaData.Default.PrimeResponse) + (char) LINE_DELIMITER);
     readonly static CachedUtf8Response NotPrime
         = new(JsonSerializer.Serialize(PrimeResponse.False, JsonPrimeMetaData.Default.PrimeResponse) + (char) LINE_DELIMITER);
+
+    [DoesNotReturn]
+    static T ThrowJsonException<T>(string message) => throw new JsonException(message);
 }

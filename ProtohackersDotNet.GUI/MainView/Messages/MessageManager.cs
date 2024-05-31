@@ -1,9 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
-using DynamicData;
 using ProtoHackersDotNet.GUI.MainView.ProtoHackerApi;
-using ProtoHackersDotNet.Servers.Helpers;
-using ProtoHackersDotNet.Servers.Interface.Exceptions;
-using System.Reactive.Subjects;
+using System.Diagnostics;
 
 namespace ProtoHackersDotNet.GUI.MainView.Messages;
 public partial class MessageManager : ObservableObject
@@ -13,10 +10,13 @@ public partial class MessageManager : ObservableObject
     ReadOnlyObservableCollection<MessageVM> messages;
     public ReadOnlyObservableCollection<MessageVM> Messages => this.messages;
 
-    readonly ListFilter sourceFilter = new();
+    readonly HashSet<IEventSource> eventSources = [];
+
+    readonly MemberObservingDictionary<string, StringFilterEntry, bool> sourceFilter 
+        = new(entry => entry.Entry, entry => entry.SelectedUpdates);
     public ListFilterManager SourceFilter { get; }
 
-    public ObservableProperty<string?> MessageSearch { get; } = new(null);
+    public ObservableValue<string?> MessageSearch { get; } = new(null);
 
     [ObservableProperty]
     bool loggingEnabled = false;
@@ -33,28 +33,27 @@ public partial class MessageManager : ObservableObject
     {
         SourceFilter = new(this.sourceFilter);
         this.messageCache.Connect()
-            .Filter(this.sourceFilter.Updates.Select(BuildSourceFilter))
-            .Filter(MessageSearch.Value.Select(BuildMessageFilter))
-            .Bind(out this.messages).Subscribe().DiscardDisposable();
+            .Filter(this.sourceFilter.Updated.Select(BuildSourceFilter))
+            .Filter(MessageSearch.Values.Select(BuildMessageFilter))
+            .SortAndBind(out this.messages).Subscribe().DiscardDisposable();
 
         Func<MessageVM, bool> BuildMessageFilter(string? search) => messageVM 
             => string.IsNullOrEmpty(search) || messageVM.Message.Contains(search, StringComparison.CurrentCulture);
-        Func<MessageVM, bool> BuildSourceFilter(Unit unit) => messageVM => this.sourceFilter[messageVM.Source];
+        Func<MessageVM, bool> BuildSourceFilter(Unit unit) => messageVM 
+            => this.sourceFilter[messageVM.Source].Selected;
     }
 
-    public void ClearMessages()
+    public void SubscribeToStream<TEvent>(EventSource<TEvent> streamSource)
+        where TEvent : IDisplayEvent
     {
-        this.messageCache.Clear();
-        this.sourceFilter.Clear();
-    }
+        bool added = this.eventSources.Add(streamSource);
+        Debug.Assert(added);
 
-    public void SubscribeToStream<T>(IObservable<T> stream, Func<T, MessageVM> translator, params string[] streamNames)
-    {
-        this.sourceFilter.AddEntries(streamNames);
-        stream.Subscribe(TranslateAndPost, PostException).DiscardDisposable();
+        this.sourceFilter.AddEntries(streamSource.SourceNames.Select(name => new StringFilterEntry(name)));
+        streamSource.EventStream.Subscribe(TranslateAndPost, PostException).DiscardDisposable();
 
-        void TranslateAndPost(T streamEvent) {
-            var message = translator(streamEvent);
+        void TranslateAndPost(TEvent streamEvent) {
+            var message = streamSource.Translator(streamEvent);
             PostMessage(message); 
         }
     }
@@ -62,7 +61,6 @@ public partial class MessageManager : ObservableObject
     void PostMessage(MessageVM message)
     {
         this.messageCache.AddOrUpdate(message);
-        // if (this.sources.Add(message.Source)) SourceFilter.Add(new(message.Source));
     
         if (LoggingEnabled) {
             this.logStream?.WriteLine($"{message.Source}, {message.Timestamp:s}, {message.Message}");
@@ -72,23 +70,26 @@ public partial class MessageManager : ObservableObject
 
     void PostException(Exception exception)
     {
-        var source = exception switch {
+        string source = exception switch {
             ClientException clientException => clientException.Client.ClientEndPoint.ToString(),
-            ProtoHackerApiException apiException => apiException?.ToString() ?? "Unknown Api",
+            ProtoHackerApiException apiException => apiException.Api?.ToString() ?? "Unknown",
             _ => "Unknown",
         };
         this.messageCache.AddOrUpdate(MessageVM.FromException(exception, source));
-        this.sourceFilter.AddEntry(source);
+        this.sourceFilter.AddEntry(new StringFilterEntry(source));
     }
 
-}
+    /// <summary>Clears messages and removes source filters that can be removed.
+    /// Sources which are not completed cannot be removed.</summary>
+    public void ClearMessages()
+    {
+        this.messageCache.Clear();
 
-public sealed class ObservableProperty<T>(T initialValue)
-{
-    readonly BehaviorSubject<T> valueObserver = new(initialValue);
-    public T LatestValue { 
-        get => this.valueObserver.Value;
-        set => this.valueObserver.OnNext(value);
+        // remove completed sources.
+        var sourcesToRemove = this.eventSources.Where(source => source.Completed.IsCompleted);
+        this.eventSources.ExceptWith(sourcesToRemove);
+        this.sourceFilter.Remove(sourcesToRemove.SelectMany(source => source.SourceNames));
+
+        MessageSearch.LatestValue = null;
     }
-    public IObservable<T> Value => this.valueObserver.AsObservable();
 }

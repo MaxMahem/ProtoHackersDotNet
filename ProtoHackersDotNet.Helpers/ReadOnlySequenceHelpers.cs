@@ -1,6 +1,7 @@
-﻿using ProtoHackersDotNet.Servers.PriceTracker;
+﻿using System.Buffers;
+using CommunityToolkit.Diagnostics;
 
-namespace ProtoHackersDotNet.Servers.Helpers;
+namespace ProtoHackersDotNet.Helpers;
 
 public static class ReadOnlySequenceHelpers
 {

@@ -1,34 +1,34 @@
-﻿using System;
-using System.IO.Pipelines;
-using System.Reactive;
-using System.Reactive.Threading.Tasks;
-using System.Reflection.PortableExecutable;
-using static CommunityToolkit.Diagnostics.ThrowHelper;
-using CI = ProtoHackersDotNet.Servers.Interface.Client;
+﻿using System.Reactive.Disposables;
+using ProtoHackersDotNet.Helpers.ObservableTypes;
+using IConnectionStatus = ProtoHackersDotNet.Servers.Interface.Client.ConnectionStatus;
 
 namespace ProtoHackersDotNet.Servers.TcpServer;
 
-public abstract partial class TcpClientBase<TServer> : IClient, IDisposable 
+public abstract class TcpClientBase<TServer> : IClient, IDisposable 
     where TServer : IServer<IClient>
 {
     public TcpClientBase(TServer server, TcpClient client, CancellationToken token)
     {
-        this.client = client;
         this.cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(token);
         Server = server;
         
         this.networkStream = client.GetStream();
 
-        ClientEndPoint = client.Client.RemoteEndPoint as IPEndPoint ?? ThrowArgumentNullException<IPEndPoint>();
+        ClientEndPoint = (IPEndPoint) client.Client.RemoteEndPoint!;
 
-        Events = Observable.Create<ClientEvent>(HandleSubscription).Finally(Dispose).Publish().RefCount();
+        Events = Observable.Create<ClientEvent>(HandleSubscription).Finally(DisposeConnection)
+            .Merge(transmissionObserver).Publish().RefCount();
+
+        this.connectionDisposables = [ client, this.cancellationSource, this.transmissionObserver ];
+        this.observableDisposables = [ this.connectionStatusObservable, 
+            this.totalBytesReceivedObservable, this.totalBytesTransmittedObservable ];
     }
 
-    readonly TcpClient client;
+    readonly Subject<ClientEvent> transmissionObserver = new();
+    readonly CompositeDisposable connectionDisposables;
+    readonly CompositeDisposable observableDisposables;
     readonly NetworkStream networkStream;
     CancellationTokenSource cancellationSource;
-    /// <summary>External observer of the event stream. Null after the client disconnects.</summary>
-    IObserver<ClientEvent>? clientEventObserver;
 
     public TServer Server { get; }
     IServer IClient.Server => Server;
@@ -37,40 +37,21 @@ public abstract partial class TcpClientBase<TServer> : IClient, IDisposable
 
     public IPEndPoint ClientEndPoint { get; }
 
-    public DateTimeOffset ConnectedAt { get; } = DateTimeOffset.UtcNow;
-
     #region Observables
 
     public IObservable<ClientEvent> Events { get; }
 
-    readonly BehaviorSubject<ConnectionStatus> connectionStatusObserver = new(CI.ConnectionStatus.Connected);
-    public IObservable<ConnectionStatus> ConnectionStatus => connectionStatusObserver.AsObservable();
-    public ConnectionStatus LatestConnectionStatus {
-        get => this.connectionStatusObserver.Value;
-        protected set => this.connectionStatusObserver.OnNext(value);
-    }
+    readonly ObservableValue<IConnectionStatus> connectionStatusObservable = new(IConnectionStatus.Connected);
+    public IObservable<IConnectionStatus> ConnectionStatus => this.connectionStatusObservable.Values;
+    public IConnectionStatus LatestConnectionStatus => this.connectionStatusObservable.LatestValue;
 
-    readonly BehaviorSubject<string?> statusObserver = new(null);
-    public IObservable<string?> Status => statusObserver.AsObservable();
-    protected string? LatestStatus {
-        get => this.statusObserver.Value;
-        set => this.statusObserver.OnNext(value);
-    }
+    public virtual IObservable<string?> Status => Observable.Return<string?>(null);
 
-    readonly BehaviorSubject<ByteSize> totalBytesTransmittedObserver = new(ByteSize.FromBytes(0));
-    public IObservable<ByteSize> TotalBytesTransmitted => totalBytesTransmittedObserver.AsObservable();
-    protected ByteSize TotalBytesTransmittedValue {
-        get => this.totalBytesTransmittedObserver.Value;
-        set => this.totalBytesTransmittedObserver.OnNext(value);
-    }
+    readonly ObservableValue<ByteSize> totalBytesTransmittedObservable = new(ByteSize.FromBytes(0));
+    public IObservable<ByteSize> TotalBytesTransmitted => this.totalBytesTransmittedObservable.Values;
 
-    readonly BehaviorSubject<ByteSize> totalBytesReceivedObserver = new(ByteSize.FromBytes(0));
-
-    public IObservable<ByteSize> TotalBytesReceived => totalBytesReceivedObserver.AsObservable();
-    protected ByteSize TotalBytesReceivedValue {
-        get => this.totalBytesReceivedObserver.Value;
-        set => this.totalBytesReceivedObserver.OnNext(value);
-    }
+    readonly ObservableValue<ByteSize> totalBytesReceivedObservable = new(ByteSize.FromBytes(0));
+    public IObservable<ByteSize> TotalBytesReceived => this.totalBytesReceivedObservable.Values;
 
     #endregion
 
@@ -78,7 +59,6 @@ public abstract partial class TcpClientBase<TServer> : IClient, IDisposable
     {
         var token = CTSHelper.LinkTokenSource(ref this.cancellationSource, unsubscribeToken);
         var reader = PipeReader.Create(networkStream);
-        this.clientEventObserver = observer;
 
         try {
             await OnConnect(this.cancellationSource.Token);            
@@ -88,7 +68,7 @@ public abstract partial class TcpClientBase<TServer> : IClient, IDisposable
                 readResult = await reader.ReadAsync(token);
                 var buffer = readResult.Buffer;
 
-                TotalBytesReceivedValue += buffer.ToByteSize();
+                this.totalBytesReceivedObservable.LatestValue += buffer.ToByteSize();
                 Transmission transmission = new(buffer, TranslateReception(buffer), false);
                 observer.OnNext(new DataReceptionEvent(this, transmission));
 
@@ -105,24 +85,25 @@ public abstract partial class TcpClientBase<TServer> : IClient, IDisposable
                 if (readResult.IsCompleted && !readResult.Buffer.IsEmpty) IncompleteMessageException.Throw(this);
             } while (!readResult.IsCompleted);
 
-            LatestConnectionStatus = CI.ConnectionStatus.Disconnected;
+            this.connectionStatusObservable.LatestValue = IConnectionStatus.Disconnected;
+            this.transmissionObserver.OnCompleted();
             observer.OnCompleted();
         }
         // Error resulting from bad client input. Report and terminate.
         catch (ClientException exception) {
             await OnException(exception, token);
 
-            LatestConnectionStatus = CI.ConnectionStatus.Terminated;
+            this.connectionStatusObservable.LatestValue = IConnectionStatus.Terminated;
             observer.OnError(exception);
         }
         catch (Exception exception) {
-            LatestConnectionStatus = CI.ConnectionStatus.Error;
+            this.connectionStatusObservable.LatestValue = IConnectionStatus.Error;
             observer.OnError(exception);
         }
         finally {
             await OnDisconnect(token);
             await reader.CompleteAsync();
-            Dispose();
+            DisposeConnection();
         }
     }
 
@@ -170,12 +151,12 @@ public abstract partial class TcpClientBase<TServer> : IClient, IDisposable
     /// <returns>A task that represents completion of this transmission.</returns>
     public async Task Transmit(ITransmission transmission)
     {
-        await networkStream.WriteAsync(transmission.Data, this.cancellationSource.Token);
+        await this.networkStream.WriteAsync(transmission.Data, this.cancellationSource.Token);
 
         var bytesTransmitted = transmission.Data.ToByteSize();
-        TotalBytesTransmittedValue += bytesTransmitted;
+        this.totalBytesTransmittedObservable.LatestValue += bytesTransmitted;
 
-        this.clientEventObserver?.OnNext(DataTransmissionEvent.FromTransmission(this, transmission));
+        this.transmissionObserver.OnNext(DataTransmissionEvent.FromTransmission(this, transmission));
     }
 
     /// <summary>Transmits <paramref name="data"/> without attempting to translate it for messaging.</summary>
@@ -185,24 +166,29 @@ public abstract partial class TcpClientBase<TServer> : IClient, IDisposable
     {
         var position = data.Start;
         while (data.TryGet(ref position, out var memory))
-            await networkStream.WriteAsync(memory, this.cancellationSource.Token);
+            await this.networkStream.WriteAsync(memory, this.cancellationSource.Token);
 
         var bytesTransmitted = data.ToByteSize();
-        TotalBytesTransmittedValue += bytesTransmitted;
+        this.totalBytesTransmittedObservable.LatestValue += bytesTransmitted;
 
         Transmission transmission = new(data, $"{bytesTransmitted} transmitted", broadcast);
-        this.clientEventObserver?.OnNext(DataTransmissionEvent.FromTransmission(this, transmission));
+        this.transmissionObserver.OnNext(DataTransmissionEvent.FromTransmission(this, transmission));
     }
 
     #endregion
 
+    void DisposeConnection()
+    {
+        this.networkStream.Flush();
+        this.networkStream.Dispose();        
+        this.connectionDisposables.Dispose();
+    }
+
     public virtual void Dispose()
     {
         GC.SuppressFinalize(this);
-        this.clientEventObserver = null;
-        this.networkStream.Flush();
-        this.networkStream.Dispose();
-        this.cancellationSource.Dispose();
-        this.client.Dispose();
+
+        Debug.Assert(this.connectionDisposables.IsDisposed);
+        this.observableDisposables.Dispose();
     }
 }

@@ -1,23 +1,35 @@
 ﻿using Microsoft.Extensions.Options;
 using ProtoHackersDotNet.AsciiString;
+using ProtoHackersDotNet.Helpers.ObservableTypes;
 
 namespace ProtoHackersDotNet.Servers.BudgetChat;
 
-public sealed partial class BudgetChatServer(IOptions<BudgetChatServerOptions> options) 
+public sealed class BudgetChatServer(IOptions<BudgetChatServerOptions> options) 
     : TcpServerBase<BudgetChatClient>, IServer<BudgetChatClient>
 {
     public const byte LINE_DELIMITER = (byte) '\n';
-    public const byte SPACE_DELIMITER = (byte) ' ';
-    public const byte SYSTEM_NOTICE_START_TOKEN = (byte) '*';
 
-    int lineBufferLength = int.Min(1024, options.Value.MaxMessageLength);
+    readonly int lineBufferLength = int.Min(1024, options.Value.MaxMessageLength);
+    readonly ObservableStore<Guid, BudgetChatClient> joinedClients = new(client => client.Id);
 
     public override ServerName Name { get; } = ServerName.From(nameof(BudgetChatServer));
 
-    public override Problem Problem { get; } = new(3, "BudgetChat");
+    public override Problem Solution { get; } = new(3, "BudgetChat");
 
-    protected override BudgetChatClient CreateClient(TcpClient client, CancellationToken token) 
-        => new(this, client, token);
+    public override IObservable<string?> Status => this.joinedClients.CurrentCount.Select(count => $"Joined Clients: {count}");
+
+    protected override BudgetChatClient CreateClient(TcpClient client, CancellationToken token)
+    {
+        BudgetChatClient newClient = new(this, client, token);
+        _ = newClient.Joined.ContinueWith(JoinClient, CancellationToken.None);
+        return newClient;
+
+        void JoinClient(Task task)
+        {
+            Debug.Assert(task.IsCompletedSuccessfully);
+            this.JoinClient(newClient);
+        }
+    }
 
     #region System notices
 
@@ -26,10 +38,7 @@ public sealed partial class BudgetChatServer(IOptions<BudgetChatServerOptions> o
     readonly SystemNotice presenceNotice = SystemNotice.From(options.Value.PresenceNotice.TrimEnd());
     readonly SystemNotice joinNotice = SystemNotice.From(options.Value.JoinNotice.TrimEnd());
     readonly SystemNotice partNotice = SystemNotice.From(options.Value.PartNotice.TrimEnd());
-    readonly PrefixPostfixAscii chatNotice = PrefixPostfixAscii.From("[{n}] ", ChatBroadcastRegex());
-
-    [GeneratedRegex(@"(^\[){n}(] )$")]
-    private static partial Regex ChatBroadcastRegex();
+    readonly ChatBroadcast chatNotice = ChatBroadcast.From("[{n}] ");
 
     /// <summary>Gets a formatted AsciiMessage detailing the presence joined users, omitting <paramref name="joiner"/>.</summary>
     /// <param name="joiner">The user who joined, and should be omitted from this message.</param>
@@ -38,7 +47,7 @@ public sealed partial class BudgetChatServer(IOptions<BudgetChatServerOptions> o
     {
         using ValueAsciiBuilder builder = new(this.lineBufferLength);
         builder.Append(presenceNotice.Value.Prefix);
-        var users = JoinedClients.Except(joiner).Select(connection => connection.UserName!.Value.Value);
+        var users = this.joinedClients.Except(joiner).Select(connection => connection.UserName!.Value.Value);
         builder.AppendJoin(nameDelimiter, users);
         builder.Append(presenceNotice.Value.Postfix);
         builder.Append(LINE_DELIMITER);
@@ -47,9 +56,15 @@ public sealed partial class BudgetChatServer(IOptions<BudgetChatServerOptions> o
 
     #endregion System Notices
 
-    /// <summary>An enumeration of all joined users.</summary>
-    public IEnumerable<BudgetChatClient> JoinedClients
-        => Clients.Where(client => client.State is BudgetChatClientState.Joined);
+    /// <summary>Adds the client to the list of joined clients.</summary>
+    /// <param name="client">The client to join.</param>
+    void JoinClient(BudgetChatClient client) => this.joinedClients.Add(client);
+
+    protected override Task OnClientDisconnect(BudgetChatClient client)
+    {
+        if (client.Joined.IsCompletedSuccessfully) this.joinedClients.Remove(client);
+        return Task.CompletedTask;
+    }
 
     #region Broadcasts
 
@@ -59,7 +74,7 @@ public sealed partial class BudgetChatServer(IOptions<BudgetChatServerOptions> o
     async Task BroadcastMessage(BudgetChatClient sender, PrefixPostfixAscii format)
     {
         var message = FormatNotice(sender.UserName!.Value, format);
-        await Broadcast(JoinedClients.Except(sender), message.ToTransmission(true));
+        await Broadcast(this.joinedClients.Except(sender), message.ToTransmission(true));
     }
 
     public async Task BroadcastJoin(BudgetChatClient joiner) => await BroadcastMessage(joiner, joinNotice.Value);
@@ -70,7 +85,7 @@ public sealed partial class BudgetChatServer(IOptions<BudgetChatServerOptions> o
         Debug.Assert(chatter.UserName is not null);
 
         var chatMessage = FormatChat(chatter.UserName.Value, message);
-        await Broadcast(JoinedClients.Except(chatter), chatMessage.ToTransmission(true));
+        await Broadcast(this.joinedClients.Except(chatter), chatMessage.ToTransmission(true));
     }
 
     ascii FormatNotice(AsciiName name, PrefixPostfixAscii notice)
@@ -86,9 +101,9 @@ public sealed partial class BudgetChatServer(IOptions<BudgetChatServerOptions> o
     ascii FormatChat(AsciiName name, ReadOnlySequence<byte> message)
     {
         using ValueAsciiBuilder builder = new(stackalloc byte[this.lineBufferLength]);
-        builder.Append(this.chatNotice.Prefix);
+        builder.Append(this.chatNotice.Value.Prefix);
         builder.Append(name.Value);
-        builder.Append(this.chatNotice.Postfix);
+        builder.Append(this.chatNotice.Value.Postfix);
         builder.Append(message);
         builder.Append(LINE_DELIMITER);
         return builder.ToAscii();
@@ -100,9 +115,9 @@ public sealed partial class BudgetChatServer(IOptions<BudgetChatServerOptions> o
 
     public AsciiName ValidateName(AsciiName name) => name switch {
         _ when (name is { Value.Length: int length } && length < MIN_NAME_LENGTH) || length > options.Value.MaxNameLength
-            => throw new FormatException($"Length of name ({length}) is not within range [{MIN_NAME_LENGTH}, {options.Value.MaxNameLength}]"),
+            => ThrowFormatException<AsciiName>($"Length of name ({length}) is not within range [{MIN_NAME_LENGTH}, {options.Value.MaxNameLength}]"),
         _ when Clients.Any(client => client.UserName is AsciiName clientName && clientName == name)
-            => throw new FormatException($"User with name \"{name}\" is already connected"),
+            => ThrowFormatException<AsciiName>($"User with name \"{name}\" is already connected"),
         _ => name,
     };
 }

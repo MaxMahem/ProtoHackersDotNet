@@ -6,16 +6,19 @@ public interface IServer : IDisposable
     ServerName Name { get; }
 
     /// <summary>The problem this server solves.</summary>
-    Problem Problem { get; }
+    Problem Solution { get; }
 
     /// <summary>The endpoint this server is listening to.</summary>
     IPEndPoint? LocalEndPoint { get; }
 
-    /// <summary>Checks if this server is listening for connections or not.</summary>
-    bool CurrentlyListening { get; }
-
     /// <summary>Provides the current status of the servers listening state.</summary>
     IObservable<bool> Listening { get; }
+
+    /// <summary>Provides an optional text status detailing the current status of the server.</summary>
+    IObservable<string?> Status { get; }
+
+    /// <summary>Provides an optional text status detailing the current status of the server.</summary>
+    IObservable<ServerStatus> ServerStatus { get; }
 
     /// <summary>Starts the server and begins listening for connections.</summary>
     /// <param name="endpoint">The IP endpoint the server should listen to.</param>
@@ -34,4 +37,14 @@ public interface IServer<out TClient> : IServer
 {
     /// <summary>Clients currently connected to this server.</summary>
     IEnumerable<TClient> Clients { get; }
+}
+
+public enum ServerStatus
+{
+    /// <summary>Indicates the server was shutdown properly, or has never been started.</summary>
+    Stopped,
+    /// <summary>Indicates the server is started and listening.</summary>
+    Listening,
+    /// <summary>Indicates the server was terminated due to an error.</summary>
+    Terminated,
 }

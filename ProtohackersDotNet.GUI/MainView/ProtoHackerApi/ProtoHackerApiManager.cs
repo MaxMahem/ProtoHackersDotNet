@@ -21,7 +21,7 @@ public class ProtoHackerApiManager(ProtoHackerApiClient client)
         private set => this.testingStatusSubject.OnNext(value);
     }
 
-    public ImmutableArray<string> EventSources { get; } = [client.SubmitTestUrl.ToString(), client.TestStatusUrl.ToString()];
+    public ImmutableArray<string> EventSources { get; } = [client.BaseAddress.Host];
 
     /// <summary>Tests <paramref name="server"/> against the ProtoHacker testing API.</summary>
     /// <param name="server">The server to test.</param>
@@ -40,12 +40,12 @@ public class ProtoHackerApiManager(ProtoHackerApiClient client)
     {
         try {
             LatestTestingStatus = ApiTestStatus.Running;
-            observer.OnNext(new TestRequestEvent(server, client.SubmitTestUrl));
+            observer.OnNext(new TestRequestEvent(server, client.BaseAddress));
 
             TestRequestApiResponse requestApiResponse = await client.RequestTesting(server, remoteEndPoint, token);
-            observer.OnNext(new TestRequestResponse(server, client.SubmitTestUrl, requestApiResponse));
+            observer.OnNext(new TestRequestResponse(server, client.BaseAddress, requestApiResponse));
 
-            ApiLogParser logProcessor = new(server, client.TestStatusUrl);
+            ApiLogParser logProcessor = new(server, client.BaseAddress);
 
             // repeatedly poll the server for testing status
             ApiCheckResponse lastResponse = await client.PollTestStatus().Do(response => {
@@ -54,7 +54,7 @@ public class ProtoHackerApiManager(ProtoHackerApiClient client)
             }).TakeUntil(_ => token.IsCancellationRequested).LastAsync();
 
             // report final status.
-            observer.OnNext(new TestResultEvent(server, client.TestStatusUrl, lastResponse));
+            observer.OnNext(new TestResultEvent(server, client.BaseAddress, lastResponse));
             LatestTestingStatus = lastResponse.CheckStatus is CheckStatus.Pass ? ApiTestStatus.Pass : ApiTestStatus.Fail;
         }
         catch (Exception exception) {

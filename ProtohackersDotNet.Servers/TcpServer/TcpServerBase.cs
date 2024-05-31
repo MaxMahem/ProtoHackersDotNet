@@ -1,39 +1,54 @@
 ﻿using System.Collections.Concurrent;
-using static CommunityToolkit.Diagnostics.ThrowHelper;
+using System.Reactive.Disposables;
+using ProtoHackersDotNet.Helpers.ObservableTypes;
+using IServerStatus = ProtoHackersDotNet.Servers.Interface.Server.ServerStatus;
 
 namespace ProtoHackersDotNet.Servers.TcpServer;
 
-abstract public class TcpServerBase<TClient> : IServer<TClient>
+public abstract class TcpServerBase<TClient> : IServer<TClient>
     where TClient : IClient
 {
-    CancellationTokenSource? cancellationSource;
+    CancellationTokenSource cancellationSource = new();
+    readonly Subject<ServerEvent> serverEventObservable = new();
+    readonly CompositeDisposable disposables;
+
+    protected TcpServerBase() 
+        => this.disposables = [this.cancellationSource, this.serverEventObservable, this.serverStatusObservable];
+
+    #region Interface properties
 
     public abstract ServerName Name { get; }
-    public abstract Problem Problem { get; }
+    public abstract Problem Solution { get; }
+
+    readonly ObservableValue<IServerStatus> serverStatusObservable = new(IServerStatus.Stopped);
+    public IObservable<IServerStatus> ServerStatus => this.serverStatusObservable.Values;
+    public IObservable<bool> Listening => ServerStatus.Select(status => status is IServerStatus.Listening)
+                                                      .DistinctUntilChanged();
+
+    public virtual IObservable<string?> Status => Observable.Return<string?>(null);
 
     public IPEndPoint? LocalEndPoint { get; private set; }
 
-    protected abstract TClient CreateClient(TcpClient client, CancellationToken token);
+    #endregion
+
+    #region Client Store
 
     /// <summary>Dictionary of currently active clients.</summary>
     readonly ConcurrentDictionary<Guid, TClient> activeClients = [];
 
-    /// <summary>Temporary observer reference for pushing notifications while the server is listening.</summary>
-    IObserver<ServerEvent>? serverObserver;
-
     /// <summary>Enumeration of currently active <typeparamref name="TClient"/>.</summary>
     public IEnumerable<TClient> Clients => activeClients.Values;
 
-    readonly BehaviorSubject<bool> listeningObserver = new(false);
-    public IObservable<bool> Listening => this.listeningObserver.AsObservable();
-    public bool CurrentlyListening {
-        get         => this.listeningObserver.Value;
-        private set => this.listeningObserver.OnNext(value);
-    }
+    protected abstract TClient CreateClient(TcpClient client, CancellationToken token);
+
+    #endregion
+
+    #region Startup And Listening Methods
 
     public IConnectableObservable<ServerEvent> Start(IPEndPoint endPoint, CancellationToken token = default)
     {
-        if (CurrentlyListening) ThrowInvalidOperationException("Server already started");
+        if (this.serverStatusObservable.LatestValue is IServerStatus.Listening) 
+            ThrowInvalidOperationException("Server already started");
         this.cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(token);
 
         LocalEndPoint = endPoint;
@@ -46,15 +61,14 @@ abstract public class TcpServerBase<TClient> : IServer<TClient>
         Debug.Assert(this.cancellationSource is not null);
         var token = CTSHelper.LinkTokenSource(ref this.cancellationSource, unsubscribeToken);
 
-        this.serverObserver = observer;
-
         Debug.Assert(LocalEndPoint is not null);
         using TcpListener listener = new(LocalEndPoint);
 
         try {
             listener.Start();
-            CurrentlyListening = true;
-            observer.OnNext(new ServerStartupEvent(this));
+            this.serverStatusObservable.LatestValue = IServerStatus.Listening;
+            await OnStartup();
+            observer.OnNext(ServerStatusChangeEvent.Startup(this));
 
             do {
                 // wait here for new connection
@@ -63,59 +77,71 @@ abstract public class TcpServerBase<TClient> : IServer<TClient>
                 this.activeClients[connectedClient.Id] = connectedClient;
 
                 // subscribe to track completion of the client.
-                connectedClient.Events.Finally(() => ClientDisconnect(connectedClient))
+                connectedClient.Events.Finally(async () => await ClientDisconnect(connectedClient))
                                .Subscribe(Stub.DoNothing, Stub.IgnoreError, token);
 
                 // this exposes the client externally so it may be subscribed to.
                 observer.OnNext(new ClientConnectionEvent(this, connectedClient));
-            } while (true); // only exit is via cancellation.
-
-            // currently no way to reach this endpoint.
+            } while (true); // only exit is via exception.
         } // operation canceled.
         catch (OperationCanceledException exception) when (exception.CancellationToken.IsCancellationRequested) {
-            observer.OnNext(new ServerShutdownEvent(this));
+            observer.OnNext(ServerStatusChangeEvent.Shutdown(this));
             observer.OnCompleted();
-        }
+            this.serverStatusObservable.LatestValue = IServerStatus.Stopped;
+        } // unhandled exception.
         catch (Exception exception) {
+            observer.OnNext(ServerStatusChangeEvent.Terminated(this, exception));
             observer.OnError(exception);
+            this.serverStatusObservable.LatestValue = IServerStatus.Terminated;
         }
         finally { // server shutdown
             DisposeClients();
             listener.Stop();
-            CurrentlyListening = false;
-
-            this.serverObserver = null;
         }
     }
 
-    void ClientDisconnect(IClient client)
+    async Task ClientDisconnect(TClient client)
     {
-        this.serverObserver?.OnNext(new ClientDisconnectEvent(this, client));
-        _ = this.activeClients.TryRemove(client.Id, out var _) || ThrowInvalidOperationException<bool>();
-        client.Dispose();
+        await OnClientDisconnect(client);
+        this.serverEventObservable.OnNext(new ClientDisconnectEvent(this, client));
+        bool removed = this.activeClients.TryRemove(client.Id, out var _);
+        Debug.Assert(removed);
     }
+
+    #endregion
+
+    #region Optional child override methods - these methods do nothing by default
+
+    protected virtual Task OnStartup() => Task.CompletedTask;
+
+    protected virtual Task OnClientDisconnect(TClient client) => Task.CompletedTask;
+    
+    #endregion
 
     /// <summary>Broadcasts <paramref name="message"/> to <paramref name="recipients"/>.</summary>
     public async Task Broadcast<TMessage>(IEnumerable<TClient> recipients, TMessage message)
         where TMessage : ITransmission
     {
         await Task.WhenAll(recipients.Select(client => client.Transmit(message)));
-        this.serverObserver?.OnNext(new ServerBroadcastEvent(this, message));
+        this.serverEventObservable.OnNext(new ServerBroadcastEvent(this, message));
+    }
+
+    #region Shutdown and Dispose Methods
+
+    public async Task<IDisposable> Stop()
+    {
+        if (this.serverStatusObservable.LatestValue is not IServerStatus.Listening)
+            ThrowInvalidOperationException("Server not started");
+
+        Debug.Assert(this.cancellationSource is not null);
+        await this.cancellationSource.CancelAsync();
+
+        return this;
     }
 
     void DisposeClients()
     {
         foreach (var client in this.activeClients.Values) client.Dispose();
-    }
-
-    public async Task<IDisposable> Stop()
-    {
-        if (!CurrentlyListening) ThrowInvalidOperationException("Server not started");
-
-        Debug.Assert(this.cancellationSource is not null);
-        await this.cancellationSource.CancelAsync();
-        
-        return this;
     }
 
     public void Dispose()
@@ -124,6 +150,8 @@ abstract public class TcpServerBase<TClient> : IServer<TClient>
 
         DisposeClients();
         this.cancellationSource?.Cancel();
-        this.cancellationSource?.Dispose();
+        this.disposables.Dispose();
     }
+
+    #endregion
 }

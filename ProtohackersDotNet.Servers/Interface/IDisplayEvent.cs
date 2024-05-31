@@ -5,11 +5,9 @@ public interface IDisplayEvent
     Problem Problem { get; }
     ServerName ServerName { get; }
     string Source { get; }
-    string? Destination { get; }
     MessageSource MessageSource { get; }
     MessageCategory Category { get; }
     string Type { get; }
-    DateTimeOffset Timestamp { get; }
     string Message { get; }
 }
 

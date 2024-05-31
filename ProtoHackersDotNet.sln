@@ -18,10 +18,16 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ProtoHackersDotNet.Android"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ProtoHackersDotNet.GUI", "ProtohackersDotNet.GUI\ProtoHackersDotNet.GUI.csproj", "{318C17AA-25EE-439B-AAEB-8C452B29B0B4}"
 	ProjectSection(ProjectDependencies) = postProject
+		{E7B876B1-62D0-4388-8042-B6304967AA53} = {E7B876B1-62D0-4388-8042-B6304967AA53}
 		{F558F46B-857E-4DB4-AFBD-7489CECC6B21} = {F558F46B-857E-4DB4-AFBD-7489CECC6B21}
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ProtoHackersDotNet.Servers", "ProtohackersDotNet.Servers\ProtoHackersDotNet.Servers.csproj", "{F558F46B-857E-4DB4-AFBD-7489CECC6B21}"
+	ProjectSection(ProjectDependencies) = postProject
+		{E7B876B1-62D0-4388-8042-B6304967AA53} = {E7B876B1-62D0-4388-8042-B6304967AA53}
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProtoHackersDotNet.Helpers", "ProtoHackersDotNet.Helpers\ProtoHackersDotNet.Helpers.csproj", "{E7B876B1-62D0-4388-8042-B6304967AA53}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -59,6 +65,10 @@ Global
 		{F558F46B-857E-4DB4-AFBD-7489CECC6B21}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F558F46B-857E-4DB4-AFBD-7489CECC6B21}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F558F46B-857E-4DB4-AFBD-7489CECC6B21}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E7B876B1-62D0-4388-8042-B6304967AA53}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E7B876B1-62D0-4388-8042-B6304967AA53}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E7B876B1-62D0-4388-8042-B6304967AA53}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E7B876B1-62D0-4388-8042-B6304967AA53}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
