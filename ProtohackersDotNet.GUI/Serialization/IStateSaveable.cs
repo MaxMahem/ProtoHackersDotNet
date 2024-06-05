@@ -1,6 +1,16 @@
-﻿namespace ProtoHackersDotNet.GUI.Serialization;
+﻿using ProtoHackersDotNet.GUI.MainView.Server;
 
-public interface IStateSaveable<T>
+namespace ProtoHackersDotNet.GUI.Serialization;
+
+public interface IStateSaveable
 {
-    T GetState();
+    IState GetState();
+}
+
+/// <summary>Marker interface for serialization.</summary>
+[JsonDerivedType(typeof(ServerManagerState))]
+public interface IState
+{
+    [JsonIgnore]
+    string ObjectName { get; }
 }

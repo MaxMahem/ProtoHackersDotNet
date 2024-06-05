@@ -1,4 +1,6 @@
-﻿namespace ProtoHackersDotNet.GUI.MainView.Messages;
+﻿using ReactiveUI;
+
+namespace ProtoHackersDotNet.GUI.MainView.Messages;
 
 public sealed class ListFilterManager : IDisposable
 {
@@ -9,8 +11,9 @@ public sealed class ListFilterManager : IDisposable
 
     public ReadOnlyObservableCollection<StringFilterEntry> Entries => entries;
 
-    public ListFilterManager(MemberObservingDictionary<string, StringFilterEntry, bool> listFilter) =>
-        this.entriesUnsubscriber = listFilter.Entries.SortAndBind(out this.entries).Subscribe();
+    public ListFilterManager(SourceCache<StringFilterEntry, string> listFilter) =>
+        this.entriesUnsubscriber = listFilter.Connect().ObserveOn(RxApp.MainThreadScheduler)
+                                             .SortAndBind(out this.entries).Subscribe();
 
     public void Dispose() => this.entriesUnsubscriber.Dispose();
 

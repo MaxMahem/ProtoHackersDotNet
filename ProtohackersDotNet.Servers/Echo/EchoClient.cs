@@ -1,13 +1,12 @@
 ﻿namespace ProtoHackersDotNet.Servers.Echo;
 
-public class EchoClient(EchoServer server, TcpClient client, CancellationToken token)
-    : TcpClientBase<EchoServer>(server, client, token)
+public class EchoClient(TcpClient client, CancellationToken token)
+    : TcpClientBase(client, token)
 {
-    public static EchoClient Create(EchoServer server, TcpClient client, CancellationToken token) 
-        => new(server, client, token);
     protected override SequencePosition? FindLineEnd(ReadOnlySequence<byte> buffer) => buffer.End;
 
-    protected override async Task ProcessLine(ReadOnlySequence<byte> line) => await Transmit(line, false);
+    protected override async Task ProcessLine(ReadOnlySequence<byte> line, CancellationToken token) 
+        => await Transmit(line, token);
 
     protected override string TranslateReception(ReadOnlySequence<byte> buffer) => $"{buffer.ToByteSize()} received";
 }

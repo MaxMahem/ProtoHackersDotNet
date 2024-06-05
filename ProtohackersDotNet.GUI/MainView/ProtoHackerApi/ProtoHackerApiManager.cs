@@ -1,9 +1,6 @@
 ﻿using System.Reactive.Subjects;
-using ProtoHackersDotNet.Servers.Interface.Exceptions;
 using ProtoHackersDotNet.GUI.MainView.ProtoHackerApi.ApiMessages;
 using ProtoHackersDotNet.GUI.MainView.ProtoHackerApi.Events;
-using ProtoHackersDotNet.Servers.Interface;
-using System.Collections.Immutable;
 
 namespace ProtoHackersDotNet.GUI.MainView.ProtoHackerApi;
 
@@ -28,7 +25,8 @@ public class ProtoHackerApiManager(ProtoHackerApiClient client)
     /// <param name="remoteEndPoint">The end point the ProtoHacker API should test against.</param>
     /// <returns>A live stream of testing events.</returns>
     public IObservable<TestEvent> TestServer(IServer server, IPEndPoint remoteEndPoint)
-        => Observable.Create<TestEvent>(async (observer, token) => await ObserveTest(server, remoteEndPoint, observer, token));
+        => Observable.Create<TestEvent>(async (observer, token) => await ObserveTest(server, remoteEndPoint, observer, token))
+                     .Publish().RefCount();
 
     /// <summary>Observes and reports on the progress of the tests.</summary>
     /// <param name="server">The server to test.</param>
@@ -38,12 +36,14 @@ public class ProtoHackerApiManager(ProtoHackerApiClient client)
     /// <returns>A task that represents completion of the tests.</returns>
     async Task ObserveTest(IServer server, IPEndPoint remoteEndPoint, IObserver<TestEvent> observer, CancellationToken token)
     {
+        if (LatestTestingStatus is ApiTestStatus.Running) throw new InvalidOperationException("Test already in progress!");
+
         try {
             LatestTestingStatus = ApiTestStatus.Running;
             observer.OnNext(new TestRequestEvent(server, client.BaseAddress));
 
             TestRequestApiResponse requestApiResponse = await client.RequestTesting(server, remoteEndPoint, token);
-            observer.OnNext(new TestRequestResponse(server, client.BaseAddress, requestApiResponse));
+            observer.OnNext(new TestRequestResponseEvent(server, client.BaseAddress, requestApiResponse, client.PollInterval));
 
             ApiLogParser logProcessor = new(server, client.BaseAddress);
 

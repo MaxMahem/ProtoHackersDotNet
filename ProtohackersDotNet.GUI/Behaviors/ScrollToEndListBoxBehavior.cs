@@ -42,7 +42,7 @@ public class ScrollToEndListBoxBehavior : Behavior<ListBox>
             if ((args.ExtentDelta.Length is not 0 || args.ViewportDelta.Length is not 0)
                 && GetScrollOffset(scrollViewer, scrollPosition) is Vector offset)
                 scrollViewer.Offset = offset;
-            // offsest changed, set new scroll position
+            // offset changed, set new scroll position
             else if (args.OffsetDelta.Length > 0)
                 scrollPosition = GetScrollPercent(scrollViewer);
         }

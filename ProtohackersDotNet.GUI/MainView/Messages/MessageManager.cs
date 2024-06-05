@@ -1,10 +1,12 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
-using ProtoHackersDotNet.GUI.MainView.ProtoHackerApi;
-using System.Diagnostics;
+using ReactiveUI;
+using System.Reactive.Concurrency;
 
 namespace ProtoHackersDotNet.GUI.MainView.Messages;
 public partial class MessageManager : ObservableObject
 {
+    readonly MessageManagerOptions options;
+
     readonly SourceCache<MessageVM, int> messageCache = new(messageVM => messageVM.Id);
     [SuppressMessage("Style", "IDE0044:Add readonly modifier", Justification = "Binding target")]
     ReadOnlyObservableCollection<MessageVM> messages;
@@ -12,14 +14,23 @@ public partial class MessageManager : ObservableObject
 
     readonly HashSet<IEventSource> eventSources = [];
 
-    readonly MemberObservingDictionary<string, StringFilterEntry, bool> sourceFilter 
-        = new(entry => entry.Entry, entry => entry.SelectedUpdates);
+    readonly SourceCache<StringFilterEntry, string> sourceFilter 
+        = new(entry => entry.Entry);
     public ListFilterManager SourceFilter { get; }
 
     public ObservableValue<string?> MessageSearch { get; } = new(null);
 
     [ObservableProperty]
     bool loggingEnabled = false;
+
+    partial void OnLoggingEnabledChanged(bool value)
+    {
+        if (value) {
+            LogFileName = Path.Combine(options.LogFilePathBase, DateTime.Now.ToString("yyMMdd-HHmmss") + ".log");
+            this.logFileStream = File.Create(LogFileName);
+            this.logStream = new StreamWriter(this.logFileStream);
+        }
+    }
 
     [ObservableProperty]
     string logFileName = string.Empty;
@@ -29,54 +40,56 @@ public partial class MessageManager : ObservableObject
 
     public IObservable<int> MessageCount => this.messageCache.CountChanged;
 
-    public MessageManager()
+    public MessageManager(MessageManagerOptions options)
     {
+        this.options = options;
+
         SourceFilter = new(this.sourceFilter);
         this.messageCache.Connect()
-            .Filter(this.sourceFilter.Updated.Select(BuildSourceFilter))
+            .Filter(this.sourceFilter.Connect().AutoRefreshOnObservable(messageVM => messageVM.SelectedUpdates)
+                                     .Select(BuildSourceFilter))
             .Filter(MessageSearch.Values.Select(BuildMessageFilter))
+            .ObserveOn(RxApp.MainThreadScheduler)
             .SortAndBind(out this.messages).Subscribe().DiscardDisposable();
 
-        Func<MessageVM, bool> BuildMessageFilter(string? search) => messageVM 
+        static Func<MessageVM, bool> BuildMessageFilter(string? search) => messageVM 
             => string.IsNullOrEmpty(search) || messageVM.Message.Contains(search, StringComparison.CurrentCulture);
-        Func<MessageVM, bool> BuildSourceFilter(Unit unit) => messageVM 
-            => this.sourceFilter[messageVM.Source].Selected;
+        Func<MessageVM, bool> BuildSourceFilter<T>(T _) => messageVM 
+            => this.sourceFilter.Lookup(messageVM.Source) is { HasValue: true } lookup 
+                ? lookup.Value.Selected : true;
     }
 
-    public void SubscribeToStream<TEvent>(EventSource<TEvent> streamSource)
-        where TEvent : IDisplayEvent
+    public void SubscribeToStream(EventSource streamSource)
     {
         bool added = this.eventSources.Add(streamSource);
         Debug.Assert(added);
 
-        this.sourceFilter.AddEntries(streamSource.SourceNames.Select(name => new StringFilterEntry(name)));
-        streamSource.EventStream.Subscribe(TranslateAndPost, PostException).DiscardDisposable();
-
-        void TranslateAndPost(TEvent streamEvent) {
-            var message = streamSource.Translator(streamEvent);
-            PostMessage(message); 
-        }
+        this.sourceFilter.AddOrUpdate(streamSource.SourceNames.Select(name => new StringFilterEntry(name)));
+        streamSource.EventStream.Timestamp().ObserveOn(TaskPoolScheduler.Default).Subscribe(
+            onNext: streamEvent => PostMessage(MessageVM.FromEvent(streamEvent)), 
+            onError: exception => PostException(exception, streamSource.MessageSource, streamSource.SourceNames.First())
+        ).DiscardDisposable();
     }
+
+    readonly object postGate = new();
 
     void PostMessage(MessageVM message)
     {
-        this.messageCache.AddOrUpdate(message);
-    
-        if (LoggingEnabled) {
-            this.logStream?.WriteLine($"{message.Source}, {message.Timestamp:s}, {message.Message}");
-            this.logStream?.Flush();
+        lock (postGate) {
+            // this.sourceFilter.AddOrUpdate(new StringFilterEntry(message.Value.Source));
+            this.messageCache.AddOrUpdate(message);
+
+            if (LoggingEnabled) {
+                this.logStream?.WriteLine($"{message.Source}, {message.Timestamp:s}, {message.Message}");
+                this.logStream?.Flush();
+            }
         }
     }
 
-    void PostException(Exception exception)
+    void PostException(Exception exception, MessageSource messageSource, string sourceName)
     {
-        string source = exception switch {
-            ClientException clientException => clientException.Client.ClientEndPoint.ToString(),
-            ProtoHackerApiException apiException => apiException.Api?.ToString() ?? "Unknown",
-            _ => "Unknown",
-        };
-        this.messageCache.AddOrUpdate(MessageVM.FromException(exception, source));
-        this.sourceFilter.AddEntry(new StringFilterEntry(source));
+        this.messageCache.AddOrUpdate(MessageVM.FromException(exception, messageSource, sourceName));
+        this.sourceFilter.AddOrUpdate(new StringFilterEntry(sourceName));
     }
 
     /// <summary>Clears messages and removes source filters that can be removed.
@@ -88,7 +101,7 @@ public partial class MessageManager : ObservableObject
         // remove completed sources.
         var sourcesToRemove = this.eventSources.Where(source => source.Completed.IsCompleted);
         this.eventSources.ExceptWith(sourcesToRemove);
-        this.sourceFilter.Remove(sourcesToRemove.SelectMany(source => source.SourceNames));
+        this.sourceFilter.RemoveKeys(sourcesToRemove.SelectMany(source => source.SourceNames));
 
         MessageSearch.LatestValue = null;
     }

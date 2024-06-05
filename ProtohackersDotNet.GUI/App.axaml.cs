@@ -14,6 +14,9 @@ using ProtoHackersDotNet.GUI.MainView.Messages;
 using ProtoHackersDotNet.GUI.MainView.ProtoHackerApi;
 using ProtoHackersDotNet.GUI.MainView.Server;
 using ProtoHackersDotNet.GUI.Serialization;
+using ProtoHackersDotNet.Servers.UdpDatabase;
+using Microsoft.Extensions.Options;
+using ProtoHackersDotNet.Servers.MobProxy;
 
 namespace ProtoHackersDotNet.GUI;
 
@@ -48,41 +51,66 @@ public class App : Application
         var config = new ConfigurationBuilder().SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                                                .AddJsonFile("appsettings.json", optional: false)
                                                .AddJsonFile(StateSaver.SETTINGS_PATH, optional: true).Build();
+        services.AddSingleton<IConfiguration>(config).EndChain();
 
-        var protoHackerApiSection = config.GetSection(nameof(ProtoHackerApiClientOptions));
-        services.AddOptions<ProtoHackerApiClientOptions>().Bind(protoHackerApiSection);
-        services.AddOptions<ServerManagerState>().Bind(config.GetSection(nameof(ServerManagerState)));
-        services.AddOptions<ClientManagerOptions>().Bind(config.GetSection(nameof(ClientManagerOptions)));
-        services.AddOptions<BudgetChatServerOptions>().Bind(config.GetSection(nameof(BudgetChatServerOptions)));
-        services.AddSingleton<StateSaver>();
-
-        services.AddSingleton(config);
+        services.Configure<ServerManagerState>(config.GetSection(nameof(ServerManagerState)));
+        var protoHackerApiClientConfig = config.GetSection(nameof(ProtoHackerApiClientOptions));
+        services.AddOptions<ProtoHackerApiClientOptions>().Bind(protoHackerApiClientConfig)
+                .ValidateAndAddResolver()
+                .RegisterOption<ServerManagerState>()
+                .RegisterOption<ClientVMFactoryOptions>()
+                .RegisterOption<MessageManagerOptions>()
+                .RegisterOption<BudgetChatServerOptions>()
+                .RegisterOption<UdpDatabaseServerOptions>()
+                .RegisterOption<MobProxyServerOptions>()
+                .AddSingleton<StateSaver>()
+                .EndChain();
 
         // http options.
         services.AddHttpClient<ProtoHackerApiClient>(ConfigureClient);
         void ConfigureClient(HttpClient client)
         {
             client.DefaultRequestHeaders.UserAgent.Add(UserAgent);
-            client.BaseAddress = protoHackerApiSection.GetValue<Uri>("BaseAddress");
+            client.BaseAddress = protoHackerApiClientConfig.GetValue<Uri>("BaseAddress");
         }
 
-        // servers
+                // servers
         services.AddSingleton<IServer<IClient>, EchoServer>()
                 .AddSingleton<IServer<IClient>, JsonPrimeServer>()
                 .AddSingleton<IServer<IClient>, PriceTrackerServer>()
-                .AddSingleton<IServer<IClient>, BudgetChatServer>();
-
-        // view elements
-        services.AddSingleton<MainWindow>();
-
-        // VM elements
-        return services.AddSingleton<ProtoHackerApiManager>()
-                       .AddSingleton<MainViewModel>()
-                       .AddSingleton<ClientManager>()
-                       .AddSingleton<ServerManager>()
-                       .AddSingleton<MessageManager>()
-                       .AddSingleton<StartServerCommand>()
-                       .AddSingleton<ClearLogCommand>()
-                       .AddSingleton<TestServerCommand>();
+                .AddSingleton<IServer<IClient>, BudgetChatServer>()
+                .AddSingleton<IServer<IClient>, UdpDatabaseServer>()
+                .AddSingleton<IServer<IClient>, MobProxyServer>()
+                // view elements
+                .AddSingleton<MainWindow>()
+                // VM elements
+                .AddSingleton<ProtoHackerApiManager>()
+                .AddSingleton<MainViewModel>()
+                .AddSingleton<ClientManager>()
+                .AddSingleton<ClientVMFactory>()
+                .AddSingleton<ServerManager>().AddStateResolver<ServerManager>()
+                .AddSingleton<MessageManager>()
+                .AddSingleton<StartServerCommand>()
+                .AddSingleton<ClearLogCommand>()
+                .AddSingleton<TestServerCommand>()
+                .EndChain();
+        return services;
     }
+}
+
+public static class ServiceCollectionHelper
+{
+    public static IServiceCollection RegisterOption<T>(this IServiceCollection services) where T : class
+        => services.AddOptions<T>().BindConfiguration(typeof(T).Name).ValidateAndAddResolver();
+    public static IServiceCollection ValidateAndAddResolver<T>(this OptionsBuilder<T> services) where T : class
+        => services.ValidateDataAnnotations().ValidateOnStart()
+                   .Services
+                   .AddSingleton(resolver => resolver.GetRequiredService<IOptions<T>>().Value);
+
+    public static IServiceCollection AddStateResolver<T>(this IServiceCollection services)
+        where T : class, IStateSaveable
+        => services.AddSingleton<IStateSaveable>(provider => provider.GetRequiredService<ServerManager>());
+
+    [SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Used for discard")]
+    public static void EndChain(this IServiceCollection services) { }
 }

@@ -1,6 +1,6 @@
 ﻿namespace ProtoHackersDotNet.GUI.MainView.Client;
 
-public class ClientManagerOptions
+public class ClientVMFactoryOptions
 {
     public required TimeSpan AgeUpdateInterval { get; init; }
 }

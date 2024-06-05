@@ -1,14 +1,33 @@
 ﻿using ProtoHackersDotNet.GUI.MainView.Client;
 using ProtoHackersDotNet.GUI.MainView.Messages;
 using ProtoHackersDotNet.GUI.MainView.Server;
+using ProtoHackersDotNet.GUI.Serialization;
+using System.Reactive.Disposables;
 
 namespace ProtoHackersDotNet.GUI.MainView;
 
-public partial class MainViewModel(ServerManager serverManager, ClientManager clientManager, MessageManager messageManager) 
+public sealed class MainViewModel : IDisposable
 {
-    public ServerManager ServerManager { get; } = serverManager;
+    readonly CompositeDisposable disposables;
 
-    public ClientManager ClientManager { get; } = clientManager;
+    public ServerManager ServerManager { get; }
+    public ClientManager ClientManager { get; }
+    public MessageManager MessageManager { get; }
 
-    public MessageManager MessageManager { get; } = messageManager;
+    public MainViewModel(ServerManager serverManager, ClientManager clientManager, MessageManager messageManager,
+        StateSaver stateSaver)
+    {
+        ServerManager = serverManager;
+        ClientManager = clientManager;
+        MessageManager = messageManager;
+
+        this.disposables = [
+            ClientManager,
+            ServerManager.Server.Subscribe(stateSaver.Save),
+            ServerManager.LocalEndPoint.Valid.Subscribe(stateSaver.Save),
+            ServerManager.RemoteEndPoint.Valid.Subscribe(stateSaver.Save),
+        ];
+    }
+
+    public void Dispose() => this.disposables.Dispose();
 }

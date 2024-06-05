@@ -5,9 +5,9 @@ using ProtoHackersDotNet.Helpers.ObservableTypes;
 namespace ProtoHackersDotNet.Servers.BudgetChat;
 
 public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, CancellationToken token)
-    : TcpClientBase<BudgetChatServer>(server, client, token)
+    : TcpClientBase(client, token)
 {
-    readonly static ImmutableArray<byte> WhiteSpace = [(byte) ' ', (byte) '\n'];
+    readonly static ImmutableArray<byte> WhiteSpace = [(byte) ' ', (byte) '\n', (byte) '\r'];
 
     readonly ObservableValue<BudgetChatClientState> stateObserver = new(BudgetChatClientState.Welcome);
 
@@ -16,14 +16,15 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
     readonly TaskCompletionSource joinedCompleteSource = new();
     public Task Joined => this.joinedCompleteSource.Task;
 
-    public override IObservable<string?> Status => this.stateObserver.Values.Select(
-        state => UserName is not null ? $"{state}: '{UserName}'" : state.ToString());
+    public override IObservable<string?> Status => this.stateObserver.Values.Select(GetStatusFromState);
+
+    string GetStatusFromState(BudgetChatClientState state) => UserName is not null ? $"{state}: '{UserName}'" : state.ToString();
 
     #region On Overloads
 
     protected override async Task OnConnect(CancellationToken token)
     {
-        await Transmit(Server.WelcomeMessage.ToTransmission(false));
+        await Transmit(new AsciiTransmission(server.WelcomeMessage), token);
         this.stateObserver.LatestValue = BudgetChatClientState.Welcome;
     }
 
@@ -31,50 +32,63 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
     {
         if (LatestConnectionStatus is IConnectionStatus.Connected) {
             ascii ascii = new(exception.Message + '\n');
-            await Transmit(ascii.ToTransmission(false));
+            await Transmit(new AsciiTransmission(ascii), token);
         }
-            
+
     }
 
     protected override async Task OnDisconnect(CancellationToken token)
     {
         if (this.stateObserver.LatestValue == BudgetChatClientState.Joined)
-            await Server.BroadcastPart(this);
+            await server.BroadcastPart(this, token);
         this.stateObserver.LatestValue = BudgetChatClientState.Parted;
     }
     #endregion
 
-    protected override async Task ProcessLine(ReadOnlySequence<byte> line)
+    static readonly ReadOnlySequence<byte> BlankLine = new([BudgetChatServer.LINE_DELIMITER]);
+
+    protected override async Task ProcessLine(ReadOnlySequence<byte> line, CancellationToken token)
     {
         try {
-            // Trim any trailing whitespace from the sequence. 
-            var lastPosition = line.LastPositionOfAnyExcept(WhiteSpace.AsSpan())
-                ?? ThrowInvalidOperationException<SequencePosition>("There should always be a line ending to trim");
-            line = line.Slice(line.Start, line.GetPosition(1, lastPosition)); // slice is *exclusive* of the end, we want inclusive.
-
-            ascii asciiLine = new(line);
+            ascii asciiLine = TrimInput(line);
 
             switch (this.stateObserver.LatestValue) {
                 case BudgetChatClientState.Welcome:
                     var userName = AsciiName.From(asciiLine);
-                    UserName = Server.ValidateName(userName);
+                    UserName = server.ValidateName(userName);
 
-                    this.stateObserver.LatestValue = BudgetChatClientState.Joined;
-                    this.joinedCompleteSource.SetResult();
-                    await Server.BroadcastJoin(this);
-
-                    await Transmit(Server.GetPresentNotice(this).ToTransmission(false));
+                    await JoinClient();
                     break;
                 case BudgetChatClientState.Joined:
-                    await Server.BroadcastChat(this, line);
+                    await server.BroadcastChat(this, asciiLine, token);
                     break;
-                default: 
+                default:
                     throw new InvalidOperationException();
             }
         }
         catch (Exception exception) when (exception is not InvalidOperationException) {
-            ClientException.Throw(exception, this);
+            ClientException.ReThrow(exception, this);
         }
+    }
+
+    /// <summary>Trims any trailing <see cref="WhiteSpace"/> from <paramref name="line"/>.</summary>
+    /// <param name="line">The input to trim.</param>
+    /// <returns><paramref name="line"/> turned into <see cref="ascii"/> and trimmed of any trailing <see cref="WhiteSpace"/>.</returns>
+    private static ascii TrimInput(ReadOnlySequence<byte> line)
+    {
+        line = line.LastPositionOfAnyExcept(WhiteSpace.AsSpan()) is SequencePosition lastPosition
+            ? line.Slice(line.Start, line.GetPosition(1, lastPosition)) // slice inclusive of last position.
+            : BlankLine; // returning null means the sequence must be only whitespace. Use a pre-blanked line.
+        return new (line);
+    }
+
+    async Task JoinClient()
+    {
+        await Transmit(new AsciiTransmission(server.GetPresentNotice(this)));
+
+        this.stateObserver.LatestValue = BudgetChatClientState.Joined;
+        this.joinedCompleteSource.SetResult();
+        await server.BroadcastJoin(this, token);
     }
 
     /// <summary>Finds the ending of the first line in <paramref name="buffer"/>, or <see langword="null""/> if absent.</summary>
@@ -83,4 +97,6 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
 
     protected override string TranslateReception(ReadOnlySequence<byte> buffer)
         => Encoding.ASCII.GetString(buffer);
+
+    enum BudgetChatClientState { Welcome, Joined, Parted }
 }

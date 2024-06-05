@@ -1,4 +1,5 @@
 ﻿using System.Buffers;
+using System.Reflection.PortableExecutable;
 using CommunityToolkit.Diagnostics;
 
 namespace ProtoHackersDotNet.Helpers;
@@ -15,25 +16,32 @@ public static class ReadOnlySequenceHelpers
     public static SequencePosition? LastPositionOfAnyExcept<T>(this ReadOnlySequence<T> sequence, ReadOnlySpan<T> searchValues)
         where T : unmanaged, IEquatable<T>
     {
-        if (sequence.IsEmpty) return null;
-
-        var reader = new SequenceReader<T>(sequence);
         SequencePosition? lastNonMatchingPosition = null;
-        long inspectedLength = 0;
+        SequencePosition newPosition = sequence.Start, oldPosition = sequence.Start;
 
-        while (!reader.End)
+        while (sequence.TryGet(ref newPosition, out var currentSegment))
         {
-            ReadOnlySpan<T> currentSpan = reader.UnreadSpan;
-            int foundIndex = currentSpan.LastIndexOfAnyExcept(searchValues);
-
-            if (foundIndex is not -1)
-                lastNonMatchingPosition = reader.Sequence.GetPosition(inspectedLength + foundIndex, sequence.Start);
-
-            inspectedLength += currentSpan.Length;
-            reader.Advance(currentSpan.Length);
+            if (currentSegment.Span.LastIndexOfAnyExcept(searchValues) is int foundIndex and >= 0)
+                lastNonMatchingPosition = sequence.GetPosition(foundIndex, oldPosition);
+            oldPosition = newPosition;
         }
 
         return lastNonMatchingPosition;
+    }
+
+    public static SequencePosition? PositionOfAnyExceptInRange<T>(this ReadOnlySequence<T> sequence, T lowInclusive, T highInclusive)
+        where T : unmanaged, IEquatable<T>, IComparable<T>
+    {
+        SequencePosition newPosition = sequence.Start, oldPosition = sequence.Start;
+
+        while (sequence.TryGet(ref newPosition, out var currentSegment)) {
+            int foundIndex = currentSegment.Span.IndexOfAnyExceptInRange(lowInclusive, highInclusive);
+
+            if (foundIndex is not -1) return sequence.GetPosition(foundIndex, oldPosition);
+            oldPosition = newPosition;
+        };
+
+        return null;
     }
 
     /// <summary>Finds the next position of <paramref name="value"/> in <paramref name="buffer"/> and returns the 

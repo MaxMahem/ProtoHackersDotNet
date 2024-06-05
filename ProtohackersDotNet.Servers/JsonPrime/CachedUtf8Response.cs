@@ -5,5 +5,4 @@ public struct CachedUtf8Response(string response) : ITransmission
 {
     public readonly ReadOnlyMemory<byte> Data { get; } = response.ToBytes(Encoding.UTF8);
     public readonly string Translation => response;
-    public readonly bool Broadcast => false;
 }

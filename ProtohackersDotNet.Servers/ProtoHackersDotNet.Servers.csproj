@@ -19,7 +19,9 @@
     <None Remove="BudgetChat\BudgetChat.md" />
     <None Remove="Echo\Echo.md" />
     <None Remove="JsonPrime\JsonPrime.md" />
+    <None Remove="MobProxy\MobProxy.md" />
     <None Remove="PriceTracker\PriceTracker.md" />
+    <None Remove="UdpDatabase\UdpDatabase.md" />
   </ItemGroup>
 
   <ItemGroup>
@@ -46,10 +48,22 @@
     <Content Include="PriceTracker\PriceTracker.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="UdpDatabase\UdpDatabase.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+		<Content Include="MobProxy\MobProxy.md">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ProtoHackersDotNet.Helpers\ProtoHackersDotNet.Helpers.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="MobProxy\MobProxy.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Resource>
   </ItemGroup>
 
 </Project>

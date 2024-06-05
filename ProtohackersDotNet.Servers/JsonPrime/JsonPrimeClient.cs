@@ -1,22 +1,21 @@
 ﻿namespace ProtoHackersDotNet.Servers.JsonPrime;
 
-public sealed class JsonPrimeClient(JsonPrimeServer server, TcpClient client, CancellationToken token)
-    : TcpClientBase<JsonPrimeServer>(server, client, token)
+public sealed class JsonPrimeClient(TcpClient client, CancellationToken token) : TcpClientBase(client, token)
 {
     public const byte LINE_DELIMITER = (byte) '\n';
 
     protected override SequencePosition? FindLineEnd(ReadOnlySequence<byte> buffer)
         => buffer.PositionOf(LINE_DELIMITER, 1);
 
-    protected override async Task ProcessLine(ReadOnlySequence<byte> line)
+    protected override async Task ProcessLine(ReadOnlySequence<byte> line, CancellationToken token)
     {
         try {
             var response = ProcessLineQuery(line).Number.IsPrime() ? IsPrime
                                                                    : NotPrime;
-            await Transmit(response);
+            await Transmit(response, token);
         }
         catch (Exception exception) {
-            ClientException.Throw(exception, this);
+            ClientException.ReThrow(exception, this);
         }
     }
 

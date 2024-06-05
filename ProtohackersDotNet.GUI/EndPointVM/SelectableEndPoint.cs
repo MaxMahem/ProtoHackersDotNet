@@ -1,4 +1,4 @@
-﻿namespace ProtoHackersDotNet.GUI.MainView;
+﻿namespace ProtoHackersDotNet.GUI.EndPointVM;
 
 public partial class SelectableEndPoint(IEnumerable<IPAddress> ips, IPAddress? ip, ushort? port) 
     : EndPointVM(ip, port)

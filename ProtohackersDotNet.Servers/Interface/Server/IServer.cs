@@ -24,7 +24,7 @@ public interface IServer : IDisposable
     /// <param name="endpoint">The IP endpoint the server should listen to.</param>
     /// <param name="token">An optional cancellation token which can be used to shut down the server.</param>
     /// <returns>A stream of events occurring on the server.</returns>
-    IConnectableObservable<ServerEvent> Start(IPEndPoint endpoint, CancellationToken token = default);
+    IConnectableObservable<IEvent> Start(IPEndPoint endpoint, CancellationToken token = default);
 
     /// <summary>Stops the server and ends listening for connections.</summary>
     /// <returns>A task representing completion of the stop procedure, and any resources needing disposing.</returns>

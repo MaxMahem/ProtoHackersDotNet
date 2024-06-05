@@ -6,6 +6,9 @@
 	<Design.PreviewWith>
 		<Border Padding="20">
 			<StackPanel>
+				<Border Name="MESSAGE_BORDER" Classes="server">
+					<TextBox>Server</TextBox>
+				</Border>
 				<Label Classes="h1">Label h1</Label>
 				<Label Classes="h2 header">Label header h2</Label>
 				<Grid Classes="success">
@@ -164,33 +167,53 @@
 		<Setter Property="Background" Value="Transparent" />
 		<Setter Property="BorderThickness" Value="0" />
 	</Style>
-	<Style Selector="ListBox ListBoxItem">
-		<Setter Property="Padding" Value="8 2 8 2" />
+	<Style Selector="ListBox#MESSAGE_LIST ListBoxItem">
+		<Setter Property="Margin" Value="0" />
+		<Setter Property="Padding" Value="0" />
 	</Style>
-	<Style Selector="ListBox#MessageList icons|MaterialIcon">
+	<Style Selector="ListBox#MESSAGE_LIST icons|MaterialIcon">
 		<Setter Property="Margin" Value="2 0 0 0" />
+	</Style>
+	<Style Selector="ListBox#CLIENT_LIST ListBoxItem">
+		<Setter Property="Padding" Value="8 2 8 2" />
 	</Style>
 	
 
 	<!-- Client lines terminated/disconnected -->
-	<Style Selector="TextBlock.disconnected">
+	<Style Selector="Grid.disconnected TextBlock">
 		<Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
 	</Style>
-	<Style Selector="TextBlock.terminated">
+	<Style Selector="Grid.terminated TextBlock">
 		<Setter Property="Foreground" Value="{DynamicResource SystemControlErrorTextForegroundBrush}" />
 	</Style>
 	
-	<!-- Meesage lines success/failure -->
-	<Style Selector="Grid.failure TextBlock">
+	<!-- Message lines success/failure -->
+	<Style Selector="Border.failure TextBlock">
+		<Setter Property="FontWeight" Value="SemiBold"/>
 		<Setter Property="Foreground" Value="{DynamicResource SystemControlErrorTextForegroundBrush}"/>
 	</Style>
-	<Style Selector="Grid.failure icons|MaterialIcon">
+	<Style Selector="Border.failure icons|MaterialIcon">
 		<Setter Property="Foreground" Value="{DynamicResource SystemControlErrorTextForegroundBrush}"/>
 	</Style>
-	<Style Selector="Grid.success TextBlock">
+	<Style Selector="Border.success TextBlock">
+		<Setter Property="FontWeight" Value="SemiBold"/>
 		<Setter Property="Foreground" Value="{DynamicResource SystemControlHighlightAltAccentBrush}"/>
 	</Style>
-	<Style Selector="Grid.success icons|MaterialIcon">
+	<Style Selector="Border.success icons|MaterialIcon">
 		<Setter Property="Foreground" Value="{DynamicResource SystemControlHighlightAltAccentBrush}"/>
+	</Style>
+
+	<!-- Message type padding and backgrounds -->
+	<Style Selector="Border#MESSAGE_BORDER">
+		<Setter Property="Padding" Value="8 2 8 2" />
+	</Style>
+	<Style Selector="Border#MESSAGE_BORDER.server">
+		<Setter Property="Background" Value="DarkGreen" />
+	</Style>
+	<Style Selector="Border#MESSAGE_BORDER.client">
+		<Setter Property="Background" Value="DarkCyan" />
+	</Style>
+	<Style Selector="Border#MESSAGE_BORDER.test">
+		<Setter Property="Background" Value="DarkOrange" />
 	</Style>
 </Styles>

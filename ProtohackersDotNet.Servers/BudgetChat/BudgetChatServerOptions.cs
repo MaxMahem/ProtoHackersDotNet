@@ -17,6 +17,9 @@ public sealed class BudgetChatServerOptions
     [RegularExpression(@"^\*[ -~]+{n}[ -~]*$", ErrorMessage = "Must begin with '*', contain the marker {n} for insertion, and consist of only Printable Ascii")]
     public required string PresenceNotice { get; init; }
 
+    [RegularExpression(@"^\*[ -~]*$", ErrorMessage = "Must begin with '*', and consist of only Printable Ascii")]
+    public required string EmptyRoomNotice { get; init; }
+
     /// <summary>Notice to display when a user joins the chat. Must begin with '*'.</summary>
     [RegularExpression(@"^\*[ -~]+{n}[ -~]*$", ErrorMessage = "Must begin with '*', contain the marker {n} for insertion, and consist of only Printable Ascii")]
     public required string JoinNotice { get; init; }

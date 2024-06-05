@@ -1,13 +1,17 @@
 ﻿namespace ProtoHackersDotNet.Servers.Interface.Client.Events;
 
-public class DataReceptionEvent(IClient client, ITransmission transmission) : ClientDataEvent(client, transmission)
+public class DataReceptionEvent(string translation) : DataEvent(translation)
 {
-    public override MessageSource MessageSource => MessageSource.RemoteClient;
-    public override ClientEventType ClientEventType => ClientEventType.DataReceived;
-    public override string Source { get; } = client.ClientEndPoint.ToString();
-    public override string? Destination { get; } = client.Server.LocalEndPoint?.ToString()
-        ?? ThrowHelper.ThrowInvalidOperationException<string>();
-    public override string Type => nameof(DataReceptionEvent);
-    public override string Message { get; } = string.IsNullOrEmpty(transmission.Translation) 
-        ? $"{transmission.Data.ToByteSize()} received" : transmission.Translation.Trim();
+    public override MessageSource SourceType => MessageSource.Client;
+    public override string Type => nameof(DataTransmissionEvent);
+
+    public static DataReceptionEvent FromClient(IClient client, string translation)
+            => new(translation) {
+                Source = client.ClientEndPoint.ToString(),
+            };
+
+    public static DataReceptionEvent FromServer(IServer server, string translation, IPEndPoint source)
+        => new(translation) {
+            Source = source.ToString(),
+        };
 }

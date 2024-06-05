@@ -1,10 +1,7 @@
 ﻿namespace ProtoHackersDotNet.Servers.Interface.Client.Messages;
 
-public class Transmission(ReadOnlySequence<byte> data, string? translation, bool broadcast) : ITransmission
+public class Transmission : ITransmission
 {
-    public ReadOnlyMemory<byte> Data => data.ToArray();
-
-    public string? Translation => translation;
-
-    public bool Broadcast => broadcast;
+    public required ReadOnlyMemory<byte> Data { get; init; }
+    public required string Translation { get; init; }
 }

@@ -1,7 +1,6 @@
 ﻿namespace ProtoHackersDotNet.Servers.PriceTracker;
 
-public sealed partial class PriceTrackerClient(PriceTrackerServer server, TcpClient client, CancellationToken token)
-    : TcpClientBase<PriceTrackerServer>(server, client, token)
+public sealed partial class PriceTrackerClient(TcpClient client, CancellationToken token) : TcpClientBase(client, token)
 {
     readonly ObservableValueList<PriceMessage> priceHistory = [];
     readonly byte[] response = new byte[sizeof(int)];
@@ -11,7 +10,7 @@ public sealed partial class PriceTrackerClient(PriceTrackerServer server, TcpCli
     protected override SequencePosition? FindLineEnd(ReadOnlySequence<byte> buffer)
         => buffer.Length < PriceMessage.MESSAGE_LENGTH ? null : buffer.GetPosition(PriceMessage.MESSAGE_LENGTH);
 
-    protected override async Task ProcessLine(ReadOnlySequence<byte> line)
+    protected override async Task ProcessLine(ReadOnlySequence<byte> line, CancellationToken token)
     {
         var priceMessage = PriceMessage.Parse(line);
 
@@ -25,10 +24,10 @@ public sealed partial class PriceTrackerClient(PriceTrackerServer server, TcpCli
                 BinaryPrimitives.WriteInt32BigEndian(response, average);
                 QueryResponse message = new(this.response, queryMessage.MaxDateUtc, queryMessage.MaxDateUtc, average);
 
-                await Transmit(message);
+                await Transmit(message, token);
                 break;
             default:
-                ClientException.Throw(new InvalidDataException($"Invalid Message Format ({(byte) priceMessage.Type:X2})"), this);
+                ClientException.ReThrow(new InvalidDataException($"Invalid Message Format ({(byte) priceMessage.Type:X2})"), this);
                 break;
         }
     }
@@ -53,6 +52,5 @@ public sealed partial class PriceTrackerClient(PriceTrackerServer server, TcpCli
     {
         public ReadOnlyMemory<byte> Data => data;
         public string Translation => $"Average price from {min:u} to {max:u}: {average/100.0:N2}";
-        public bool Broadcast => false;
     }
 }

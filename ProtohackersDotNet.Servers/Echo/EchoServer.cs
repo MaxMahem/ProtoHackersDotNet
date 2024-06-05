@@ -6,5 +6,5 @@ public class EchoServer : TcpServerBase<EchoClient>
 
     public override Problem Solution { get; } = new(0, "Echo");
 
-    protected override EchoClient CreateClient(TcpClient client, CancellationToken token) => new(this, client, token);
+    protected override EchoClient CreateClient(TcpClient client, CancellationToken token) => new(client, token);
 }

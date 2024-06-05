@@ -23,8 +23,8 @@
 		<DockPanel Name="ServerSelect" Grid.Column="0" Grid.Row="0" DataContext="{Binding ServerManager}">
 			<Label DockPanel.Dock="Left" Target="{Binding #TypeDropdown}" Classes="h1">Server</Label>
 			<ComboBox Name="TypeDropdown" HorizontalAlignment="Right"
-								ItemsSource="{Binding Servers}" SelectedItem="{Binding Server}"
-								IsEnabled="{Binding !Server.Listening^}">
+								ItemsSource="{Binding Servers}" SelectedItem="{Binding ServerValue}"
+								IsEnabled="{Binding !Server^.Listening^}">
 				<ComboBox.ItemTemplate>
 					<DataTemplate>
 						<TextBlock Text="{Binding Name}"/>
@@ -42,7 +42,7 @@
 							<ComboBox Name="LocalIP" Grid.Column="1" Grid.Row="0"
 												HorizontalAlignment="Stretch" Classes="mono"
 												ItemsSource="{Binding LocalEndPoint.SelectableIPs}" SelectedItem="{Binding LocalEndPoint.IP}"
-												IsEnabled="{Binding !Server.Listening^}" />
+												IsEnabled="{Binding !Server^.Listening^}" />
 							<Label         Grid.Column="0" Grid.Row="1" Target="{Binding #LocalPort}"
 														 VerticalAlignment="Center" Classes="h2">Port</Label>
 							<NumericUpDown Grid.Column="1" Grid.Row="1" Name="LocalPort"
@@ -50,7 +50,7 @@
 														 Classes.invalid="{Binding !LocalEndPoint.PortValid^}"
 														 Value="{Binding LocalEndPoint.Port}"
 														 Minimum="0" Maximum="65535" FormatString="0"
-														 IsEnabled="{Binding !Server.Listening^}" />
+														 IsEnabled="{Binding !Server^.Listening^}" />
 						</Grid>
 					</TabItem>
 					<TabItem Header="Remote">
@@ -75,7 +75,7 @@
 				</TabControl>
 			</StackPanel>
 			<Border Name="DescriptionBorder" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" BorderThickness="1" CornerRadius="3">
-				<md:MarkdownScrollViewer Markdown="{Binding Server.Solution.Description}">
+				<md:MarkdownScrollViewer Markdown="{Binding Server^.Solution.Description}">
 					<md:MarkdownScrollViewer.Styles>
 						<Style Selector="ctxt|CTextBlock.Heading1">
 							<Setter Property="FontSize" Value="18"/>
@@ -104,18 +104,18 @@
 			<Button Command="{Binding TestServer}" Name="TestButton">
 				<Button.IsEnabled>
 					<MultiBinding Converter="{x:Static BoolConverters.And}">
-						<Binding Path="Server.Listening^"/>
+						<Binding Path="Server^.Listening^"/>
 						<Binding Path="RemoteEndPoint.Valid^"/>
 						<Binding Path="!TestServerCommand.TestRunning^"/>
 					</MultiBinding>
 				</Button.IsEnabled>
 				<TextBlock>Test</TextBlock>
 			</Button>
-			<Button Command="{Binding StopServer}" IsEnabled="{Binding Server.Listening^}">Stop</Button>
-			<Button Command="{Binding StartServer}" IsEnabled="{Binding !Server.Listening^}">
+			<Button Command="{Binding StopServer}" IsEnabled="{Binding Server^.Listening^}">Stop</Button>
+			<Button Command="{Binding StartServer}" IsEnabled="{Binding !Server^.Listening^}">
 				<Button.IsEnabled>
 					<MultiBinding Converter="{x:Static BoolConverters.And}">
-						<Binding Path="!Server.Listening^"/>
+						<Binding Path="!Server^.Listening^"/>
 						<Binding Path="LocalEndPoint.Valid^"/>
 					</MultiBinding>
 				</Button.IsEnabled>
@@ -127,8 +127,8 @@
 			<TextBlock Classes="h2" VerticalAlignment="Center">
 				<TextBlock.Text>
 					<MultiBinding Converter="{x:Static mv:Converters.JoinConverter}">
-						<Binding Path="ServerManager.Server.ServerStatus^" />
-						<Binding Path="ServerManager.Server.Status^" />
+						<Binding Path="ServerManager.Server^.ServerStatus^" />
+						<Binding Path="ServerManager.Server^.Status^" />
 					</MultiBinding>
 				</TextBlock.Text>
 			</TextBlock>
@@ -151,7 +151,7 @@
 								<Label Grid.Column="3" Classes="h2 header" HorizontalContentAlignment="Right">Recieved</Label>
 								<Label Grid.Column="4" Classes="h2 header" HorizontalContentAlignment="Right">Transmitted</Label>
 							</Grid>
-							<ListBox Name="ClientList" ItemsSource="{Binding Clients}">
+							<ListBox Name="CLIENT_LIST" ItemsSource="{Binding Clients}">
 								<ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
 								<ListBox.DataTemplates><mvc:ClientDataTemplate/></ListBox.DataTemplates>
 								<interAct:Interaction.Behaviors>
@@ -203,7 +203,7 @@
 									</FlyoutBase.AttachedFlyout>
 								</Label>
 							</Grid>
-							<ListBox Name="MessageList" ItemsSource="{Binding Messages}"
+							<ListBox Name="MESSAGE_LIST" ItemsSource="{Binding Messages}"
 											 ItemTemplate="{StaticResource MessageGridTemplate}">
 								<interAct:Interaction.Behaviors>
 									<behave:ScrollToEndListBoxBehavior/>
@@ -218,7 +218,7 @@
 			<Button DockPanel.Dock="Right" Command="{Binding MessageManager.ClearMessages}">Clear Messages</Button>
 			<StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
 				<Label VerticalAlignment="Center" Target="{Binding #LogToggle}">Message Logging</Label>
-				<ToggleSwitch Name="LogToggle" IsChecked="{Binding MessageManager.LoggingEnabled}" IsEnabled="{Binding !ServerManager.Server.Listening^}" />
+				<ToggleSwitch Name="LogToggle" IsChecked="{Binding MessageManager.LoggingEnabled}" IsEnabled="{Binding !ServerManager.Server^.Listening^}" />
 				<TextBlock Text="{Binding MessageManager.LogFileName}" Margin="5 0 0 0" VerticalAlignment="Center" />
 			</StackPanel>
 		</DockPanel>

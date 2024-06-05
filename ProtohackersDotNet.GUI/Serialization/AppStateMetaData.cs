@@ -1,4 +1,7 @@
-﻿namespace ProtoHackersDotNet.GUI.Serialization;
+﻿using ProtoHackersDotNet.GUI.MainView.Server;
 
-[JsonSerializable(typeof(AppStates))]
-internal partial class AppStateMetaData : JsonSerializerContext;
+namespace ProtoHackersDotNet.GUI.Serialization;
+
+[JsonSerializable(typeof(Dictionary<string, IState>))]
+[JsonSerializable(typeof(ServerManagerState))]
+partial class AppStateMetaData : JsonSerializerContext;

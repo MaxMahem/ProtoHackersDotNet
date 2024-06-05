@@ -13,7 +13,7 @@ public static class Converters
         = new(objects => objects.ToArray() switch {
             [ConnectionStatus.Connected, Brush connectedBrush, _, _] => connectedBrush,
             [ConnectionStatus.Disconnected, _, Brush disconnectedBrush] => disconnectedBrush,
-            [ConnectionStatus.Terminated, _, _, Brush terminatedBrush] => terminatedBrush,
+            [ConnectionStatus.Exception, _, _, Brush terminatedBrush] => terminatedBrush,
             _ => (Brush) Brushes.Purple
         });
 

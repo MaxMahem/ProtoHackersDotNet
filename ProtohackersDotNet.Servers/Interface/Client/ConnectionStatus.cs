@@ -8,7 +8,9 @@ public enum ConnectionStatus
     /// <summary>The client was disconnected gracefully.</summary>
     Disconnected,
     /// <summary>The client was disconnected forcefully.</summary>
-    Terminated,
+    Exception,
+    /// <summary>The connection was forcefully closed by the client.</summary>
+    ForceClose,
     /// <summary>Error in client code.</summary>
     Error,
 }

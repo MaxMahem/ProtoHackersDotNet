@@ -1,6 +1,6 @@
 ﻿using CommunityToolkit.HighPerformance;
 
-namespace ProtoHackersDotNet.GUI.MainView;
+namespace ProtoHackersDotNet.GUI.EndPointVM;
 
 public partial class TextEndPoint(IPAddress? ip, ushort? port) : EndPointVM(ip, port)
 {

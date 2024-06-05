@@ -1,15 +1,22 @@
 ﻿using System.Net.NetworkInformation;
-using Microsoft.Extensions.Options;
 using CommunityToolkit.Mvvm.ComponentModel;
-using DynamicData;
 using ProtoHackersDotNet.GUI.Serialization;
+using ProtoHackersDotNet.GUI.EndPointVM;
 
 namespace ProtoHackersDotNet.GUI.MainView.Server;
 
-public sealed partial class ServerManager : ObservableValidator, IStateSaveable<ServerManagerState>
+public sealed class ServerManager : IStateSaveable
 {
-    [ObservableProperty]
-    IServer<IClient> server;
+    readonly ObservableValue<IServer<IClient>> serverObserver;
+
+    public IServer<IClient> ServerValue {
+        get => this.serverObserver.LatestValue;
+        set => this.serverObserver.LatestValue = value;
+    }
+
+    /// <summary>Provides updates to the value of <see cref="ServerManager.ServerValue"/> 
+    /// as it changes.</summary>
+    public IObservable<IServer<IClient>> Server => this.serverObserver.Values;
     
     public ObservableCollection<IServer<IClient>> Servers { get; }
 
@@ -17,37 +24,37 @@ public sealed partial class ServerManager : ObservableValidator, IStateSaveable<
     public TextEndPoint RemoteEndPoint { get; }
 
     readonly StartServerCommand startServerCommand;
-    readonly ClearLogCommand clearLogsCommand;
     public TestServerCommand TestServerCommand { get; }
 
-    public ServerManager(IEnumerable<IServer<IClient>> servers, IOptions<ServerManagerState> options,
+    public ServerManager(IEnumerable<IServer<IClient>> servers, ServerManagerState options,
         StartServerCommand startServerCommand, ClearLogCommand clearLogsCommand, TestServerCommand testServerCommand)
     {
         Servers = new(servers);
-        this.server = Servers.FirstOrDefault(server => server.Name.Value == options.Value.Server, Servers.First());
+        var initialServer = Servers.FirstOrDefault(server => server.Name.Value == options.Server, Servers.First());
+        this.serverObserver = new(initialServer);
 
         // this should trigger all our server descriptions to load lazily.
         _ = Task.WhenAll(Servers.Select(server => Task.Run(() => _ = server.Solution.Description)));
 
-        var localIP = SystemIPs.FirstOrDefault(ip => ip.ToString() == options.Value?.LocalEndPoint?.IP, IPAddress.Any);
-        LocalEndPoint = new(SystemIPs, localIP, options.Value?.LocalEndPoint?.Port);
+        var localIP = SystemIPs.FirstOrDefault(ip => ip.ToString() == options.LocalEndPoint?.IP, IPAddress.Any);
+        LocalEndPoint = new(SystemIPs, localIP, options.LocalEndPoint?.Port);
 
         // no extra validation done here, because a null value is okay.
-        _ = IPAddress.TryParse(options.Value?.RemoteEndPoint?.IP, out var ip);
-        RemoteEndPoint = new(ip, options.Value?.RemoteEndPoint?.Port);
+        _ = IPAddress.TryParse(options.RemoteEndPoint?.IP, out var ip);
+        RemoteEndPoint = new(ip, options.RemoteEndPoint?.Port);
+
+        // When the server changes, clear the logs.
+        Server.Subscribe(_ => clearLogsCommand.ClearClientsAndMessages()).DiscardDisposable();
 
         this.startServerCommand = startServerCommand;
-        this.clearLogsCommand = clearLogsCommand;
         TestServerCommand = testServerCommand;
     }
 
-    partial void OnServerChanged(IServer<IClient> value) => this.clearLogsCommand.Clear();
+    public void StartServer() => this.startServerCommand.StartServer(serverObserver.LatestValue, LocalEndPoint.LatestValidEndPoint);
 
-    public void StartServer() => this.startServerCommand.StartServer(Server, LocalEndPoint.LatestValidEndPoint);
+    public async Task StopServer() => _ = await serverObserver.LatestValue.Stop();
 
-    public async Task StopServer() => _ = await Server.Stop();
-
-    public void TestServer() => TestServerCommand.Test(Server, RemoteEndPoint.LatestValidEndPoint);
+    public void TestServer() => TestServerCommand.Test(serverObserver.LatestValue, RemoteEndPoint.LatestValidEndPoint);
 
     public void RefreshLocalIPs()
     {
@@ -56,10 +63,10 @@ public sealed partial class ServerManager : ObservableValidator, IStateSaveable<
     }
 
     /// <summary>Called when the app exits. Save the current state out to json.</summary>
-    public ServerManagerState GetState() => new() {
+    public IState GetState() => new ServerManagerState() {
             LocalEndPoint = LocalEndPoint.ToSerializable(),
             RemoteEndPoint = RemoteEndPoint.ToSerializable(),
-            Server = Server.Name.Value
+            Server = serverObserver.LatestValue.Name.Value
         };
 
     static IEnumerable<IPAddress> SystemIPs

@@ -1,7 +1,6 @@
-﻿using ProtoHackersDotNet.GUI.EndPointVM;
-using ProtoHackersDotNet.Helpers;
+﻿using ProtoHackersDotNet.GUI.Serialization;
 
-namespace ProtoHackersDotNet.GUI.MainView;
+namespace ProtoHackersDotNet.GUI.EndPointVM;
 
 public abstract class EndPointVM(IPAddress? ip, ushort? port)
 {
@@ -24,5 +23,8 @@ public abstract class EndPointVM(IPAddress? ip, ushort? port)
     public IObservable<IPEndPoint> EndPoint => Valid.Where().Select(v => new IPEndPoint(IP!, Port!.Value));
     public IPEndPoint LatestValidEndPoint => EndPoint.Latest().First();
 
-    public SerializableEndPoint ToSerializable() => new(IP?.ToString(), Port);
+    public SerializableEndPoint ToSerializable() => new() {
+        IP = IP?.ToString(),
+        Port = Port
+    };
 }

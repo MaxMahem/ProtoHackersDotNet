@@ -13,7 +13,7 @@ public class ProtoHackerApiClient(HttpClient client, IOptions<ProtoHackerApiClie
     readonly Uri submitTestUrl = new(options.Value.BaseAddress, options.Value.SubmitTestUrl); 
     readonly Uri testStatusUrl = new(options.Value.BaseAddress, options.Value.TestStatusUrl);
 
-    readonly TimeSpan pollingInterval = options.Value.PollingInterval;
+    public TimeSpan PollInterval { get; } = options.Value.PollingInterval;
 
     /// <summary>The last url that was accessed, for error checking.</summary>
     public Uri? LastAccessedUrl { get; private set; }
@@ -26,7 +26,7 @@ public class ProtoHackerApiClient(HttpClient client, IOptions<ProtoHackerApiClie
         LastAccessedUrl = testStatusUrl;
         return Observable.FromAsync((token) => client.GetFromJsonAsync(testStatusUrl, ApiTestsMetadata.Default.ApiCheckResponse, token))
                          .Select(response => response?.Status is ResponseStatus.Ok ? response : ThrowResponseError<ApiCheckResponse>())
-                         .Repeat().Delay(this.pollingInterval).TakeWhileInclusive(response => response?.CheckStatus is CheckStatus.Checking);
+                         .Repeat().Delay(PollInterval).TakeWhileInclusive(response => response?.CheckStatus is CheckStatus.Checking);
     }
 
     /// <summary>Requests testing of a given service from the ProtoHacker API.</summary>

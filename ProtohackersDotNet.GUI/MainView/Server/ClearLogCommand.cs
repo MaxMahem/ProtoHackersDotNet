@@ -5,14 +5,9 @@ namespace ProtoHackersDotNet.GUI.MainView.Server;
 
 public class ClearLogCommand(ClientManager clientManager, MessageManager messageManager)
 {
-    public void Clear()
+    public void ClearClientsAndMessages()
     {
         clientManager.ClearDisconnectedClients();
-        messageManager.ClearMessages();
-    }
-
-    public void ClearMessages()
-    {
         messageManager.ClearMessages();
     }
 }

@@ -21,6 +21,10 @@ public sealed class ObservableValue<T>(T initialValue) : IDisposable
     /// <summary>Provides updates when the observed value changes.</summary>
     public IObservable<T> Values => valueObserver.AsObservable();
 
+    /// <summary>Notifies all observers of completion of the sequence.</summary>
+    /// <remarks>Note, after doing this the value can no longer be changed!</remarks>
+    public void Complete() => valueObserver.OnCompleted();
+
     /// <summary>Disposes of this value, unsubscribing all observers. 
     /// After calling this method this value can no longer be read!</summary>
     public void Dispose() => valueObserver.Dispose();

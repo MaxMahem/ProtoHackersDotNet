@@ -1,6 +1,7 @@
 ﻿using System;
 
 using Avalonia;
+using Avalonia.ReactiveUI;
 using ProtoHackersDotNet.GUI;
 
 namespace ProtoHackersDotNet.Desktop;
@@ -19,6 +20,7 @@ class Program
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
+            .UseReactiveUI()
             .LogToTrace();
 
 }

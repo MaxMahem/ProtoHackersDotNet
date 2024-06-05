@@ -1,36 +1,44 @@
-﻿using Microsoft.Extensions.Options;
-using System.Collections.Specialized;
-using System.Reactive.Subjects;
+﻿using ReactiveUI;
+using System.Reactive.Disposables;
 
 namespace ProtoHackersDotNet.GUI.MainView.Client;
 
-public sealed class ClientManager
+public sealed class ClientManager : IDisposable
 {
-    readonly ClientManagerOptions options;
+    readonly CompositeDisposable disposables;
 
-    public ClientManager(IOptions<ClientManagerOptions> options)
+    readonly ClientVMFactory factory;
+
+    readonly SourceCache<ClientVM, ClientVM> clientStore = new(client => client);
+
+    [SuppressMessage("Style", "IDE0044:Add readonly modifier", Justification = "Binding target")]
+    ReadOnlyObservableCollection<ClientVM> clients;
+
+    public ClientManager(ClientVMFactory factory)
     {
-        this.options = options.Value;
-        ActiveClientCount = Observable.FromEventPattern<NotifyCollectionChangedEventHandler, NotifyCollectionChangedEventArgs>(
-                handler => Clients.CollectionChanged += handler,
-                handler => Clients.CollectionChanged -= handler
-        ).Select(_ => Clients).SelectMany(clients => clients.Select(client => client.Client.ConnectionStatus)).SelectMany(status => status)
-         .Select(_ => Clients.Count(client => client.Client.LatestConnectionStatus is ConnectionStatus.Connected))
-         .StartWith(Clients.Count);
+        this.factory = factory;
+
+        this.disposables = [ this.clientStore,
+            this.clientStore.Connect().ObserveOn(RxApp.MainThreadScheduler)
+                .SortAndBind(out this.clients).Subscribe(),
+        ];
     }
 
-    public IObservable<int> ActiveClientCount { get; } 
-        
-    public ObservableCollection<ClientVM> Clients { get; } = [];
+    public IObservable<int> ActiveClientCount 
+        => this.clientStore.Connect().AutoRefreshOnObservable(clientVM => clientVM.Status)
+                           .Select(_ => this.clientStore.Items.Where(clientVM => clientVM.IsConnected).Count())
+                           .StartWith(0);
 
-    public void AddClient(IClient client) => Clients.Add(new(client, this.options.AgeUpdateInterval));
+    public ReadOnlyObservableCollection<ClientVM> Clients => this.clients;
 
-    public void ClearDisconnectedClients()
-    {
-        for (int index = Clients.Count - 1; index >= 0; index--)
-            if (Clients[index].Client is { LatestConnectionStatus: not ConnectionStatus.Connected } client) {
-                Clients.RemoveAt(index);
-                client.Dispose();
-            }
-    }
+    public void AddClient(IClient client) 
+        => this.clientStore.AddOrUpdate(this.factory.CreateClientVM(client));
+
+    public void ClearDisconnectedClients() 
+        => this.clientStore.RemoveKeys(this.clientStore.Items.Where(client => !client.IsConnected));
+    public void Dispose() => this.clientStore.Dispose();
+}
+
+public sealed class ClientVMFactory(ClientVMFactoryOptions options) {
+    public ClientVM CreateClientVM(IClient client) => new(client, options.AgeUpdateInterval);
 }

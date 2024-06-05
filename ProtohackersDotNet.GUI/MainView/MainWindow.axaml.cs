@@ -4,8 +4,6 @@ namespace ProtoHackersDotNet.GUI.MainView;
 
 public partial class MainWindow : Window
 {
-    readonly StateSaver stateSaver;
-
     public MainWindow(MainViewModel mainViewModel, StateSaver stateSaver)
     {
         Title = $"{App.AppName} - {App.Version}";
@@ -14,12 +12,8 @@ public partial class MainWindow : Window
         MainViewModel = mainViewModel;
         DataContext = MainViewModel;
 
-        this.stateSaver = stateSaver;
-
-        Closing += MainWindow_Closing;
+        Closing += (_, _) => stateSaver.Save();
     }
-
-    private void MainWindow_Closing(object? sender, WindowClosingEventArgs e) => this.stateSaver.Save();
 
     public MainViewModel MainViewModel { get; }
 }

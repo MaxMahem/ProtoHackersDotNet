@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Reactive;
 using System.Reactive.Disposables;
 using ProtoHackersDotNet.Helpers.ObservableTypes;
 using IServerStatus = ProtoHackersDotNet.Servers.Interface.Server.ServerStatus;
@@ -9,11 +10,12 @@ public abstract class TcpServerBase<TClient> : IServer<TClient>
     where TClient : IClient
 {
     CancellationTokenSource cancellationSource = new();
-    readonly Subject<ServerEvent> serverEventObservable = new();
     readonly CompositeDisposable disposables;
 
     protected TcpServerBase() 
-        => this.disposables = [this.cancellationSource, this.serverEventObservable, this.serverStatusObservable];
+        => this.disposables = [this.cancellationSource, ServerEventObservable, this.serverStatusObservable];
+
+    protected Subject<IEvent> ServerEventObservable { get; } = new();
 
     #region Interface properties
 
@@ -34,10 +36,10 @@ public abstract class TcpServerBase<TClient> : IServer<TClient>
     #region Client Store
 
     /// <summary>Dictionary of currently active clients.</summary>
-    readonly ConcurrentDictionary<Guid, TClient> activeClients = [];
+    readonly ConcurrentDictionary<TClient, Unit> activeClients = [];
 
     /// <summary>Enumeration of currently active <typeparamref name="TClient"/>.</summary>
-    public IEnumerable<TClient> Clients => activeClients.Values;
+    public IEnumerable<TClient> Clients => activeClients.Keys;
 
     protected abstract TClient CreateClient(TcpClient client, CancellationToken token);
 
@@ -45,18 +47,20 @@ public abstract class TcpServerBase<TClient> : IServer<TClient>
 
     #region Startup And Listening Methods
 
-    public IConnectableObservable<ServerEvent> Start(IPEndPoint endPoint, CancellationToken token = default)
+    public IConnectableObservable<IEvent> Start(IPEndPoint endPoint, CancellationToken token = default)
     {
         if (this.serverStatusObservable.LatestValue is IServerStatus.Listening) 
             ThrowInvalidOperationException("Server already started");
+        this.cancellationSource.Dispose();
         this.cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(token);
 
         LocalEndPoint = endPoint;
 
-        return Observable.Create<ServerEvent>(HandleSubscription).Publish();
+        return Observable.Create<IEvent>(HandleSubscription).Merge(ServerEventObservable)
+                         .Publish();
     }
 
-    async Task HandleSubscription(IObserver<ServerEvent> observer, CancellationToken unsubscribeToken)
+    async Task HandleSubscription(IObserver<IEvent> observer, CancellationToken unsubscribeToken)
     {
         Debug.Assert(this.cancellationSource is not null);
         var token = CTSHelper.LinkTokenSource(ref this.cancellationSource, unsubscribeToken);
@@ -68,13 +72,13 @@ public abstract class TcpServerBase<TClient> : IServer<TClient>
             listener.Start();
             this.serverStatusObservable.LatestValue = IServerStatus.Listening;
             await OnStartup();
-            observer.OnNext(ServerStatusChangeEvent.Startup(this));
+            observer.OnNext(new ServerStartupEvent(this));
 
             do {
                 // wait here for new connection
                 var newTcpConnection = await listener.AcceptTcpClientAsync(token);
                 var connectedClient = CreateClient(newTcpConnection, token);
-                this.activeClients[connectedClient.Id] = connectedClient;
+                this.activeClients[connectedClient] = Unit.Default;
 
                 // subscribe to track completion of the client.
                 connectedClient.Events.Finally(async () => await ClientDisconnect(connectedClient))
@@ -85,12 +89,13 @@ public abstract class TcpServerBase<TClient> : IServer<TClient>
             } while (true); // only exit is via exception.
         } // operation canceled.
         catch (OperationCanceledException exception) when (exception.CancellationToken.IsCancellationRequested) {
-            observer.OnNext(ServerStatusChangeEvent.Shutdown(this));
+            observer.OnNext(new ServerShutdownEvent(this));
             observer.OnCompleted();
+            ServerEventObservable.OnCompleted();
             this.serverStatusObservable.LatestValue = IServerStatus.Stopped;
         } // unhandled exception.
         catch (Exception exception) {
-            observer.OnNext(ServerStatusChangeEvent.Terminated(this, exception));
+            observer.OnNext(new ServerTerminatedEvent(this, exception));
             observer.OnError(exception);
             this.serverStatusObservable.LatestValue = IServerStatus.Terminated;
         }
@@ -103,8 +108,8 @@ public abstract class TcpServerBase<TClient> : IServer<TClient>
     async Task ClientDisconnect(TClient client)
     {
         await OnClientDisconnect(client);
-        this.serverEventObservable.OnNext(new ClientDisconnectEvent(this, client));
-        bool removed = this.activeClients.TryRemove(client.Id, out var _);
+        ServerEventObservable.OnNext(new ClientDisconnectEvent(this, client));
+        bool removed = this.activeClients.TryRemove(client, out var _);
         Debug.Assert(removed);
     }
 
@@ -117,14 +122,6 @@ public abstract class TcpServerBase<TClient> : IServer<TClient>
     protected virtual Task OnClientDisconnect(TClient client) => Task.CompletedTask;
     
     #endregion
-
-    /// <summary>Broadcasts <paramref name="message"/> to <paramref name="recipients"/>.</summary>
-    public async Task Broadcast<TMessage>(IEnumerable<TClient> recipients, TMessage message)
-        where TMessage : ITransmission
-    {
-        await Task.WhenAll(recipients.Select(client => client.Transmit(message)));
-        this.serverEventObservable.OnNext(new ServerBroadcastEvent(this, message));
-    }
 
     #region Shutdown and Dispose Methods
 
@@ -141,7 +138,7 @@ public abstract class TcpServerBase<TClient> : IServer<TClient>
 
     void DisposeClients()
     {
-        foreach (var client in this.activeClients.Values) client.Dispose();
+        foreach (var client in this.activeClients.Keys) client.Dispose();
     }
 
     public void Dispose()

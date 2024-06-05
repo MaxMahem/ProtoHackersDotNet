@@ -4,11 +4,9 @@ public class ClientDisconnectEvent(IServer server, IClient client) : ServerEvent
 {
     public IClient Client { get; } = client;
 
-    public override ServerEventType EventType => ServerEventType.ClientDisconnect;
+    public override string Type { get; } = nameof(ClientDisconnectEvent);
 
-    public override string Type { get; } = ServerEventType.ClientDisconnect.ToString();
-
-    public override MessageCategory Category => MessageCategory.StatusChange;
+    public override MessageType MessageType => MessageType.Notice;
 
     public override string Message { get; } = $"Client disconnect from {client.ClientEndPoint}";
 }
