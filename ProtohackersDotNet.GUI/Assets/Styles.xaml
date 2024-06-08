@@ -6,6 +6,7 @@
 	<Design.PreviewWith>
 		<Border Padding="20">
 			<StackPanel>
+				<ComboBox Classes="failure">Server</ComboBox>
 				<Border Name="MESSAGE_BORDER" Classes="server">
 					<TextBox>Server</TextBox>
 				</Border>
@@ -21,12 +22,6 @@
 				<TextBlock Classes="h1">Header h1</TextBlock>
 				<TextBox Classes="mono invalid">mono invalid</TextBox>
 				<NumericUpDown Classes="mono invalid" />
-				<TabControl>
-					<TabItem Header="Tab1">Tab1</TabItem>
-					<TabItem Header="Tab2">Tab2</TabItem>
-				</TabControl>
-				<Button Classes="Green">Animated</Button>
-				<Button Classes="Blue">Staticxxxi</Button>
 				<ItemsControl Classes="filterList">
 					<CheckBox Classes="filterItem">One</CheckBox>
 					<CheckBox Classes="filterItem">Two</CheckBox>
@@ -46,13 +41,52 @@
     <Color x:Key="SteelBlueColor">#FF4682B4</Color> <!-- Steel Blue -->
 	</Styles.Resources>
 
+	<Style Selector="ComboBox#ServerDropdown.success">
+		<Setter Property="Background" Value="{DynamicResource SystemControlHighlightAltAccentBrush}" />
+	</Style>
+	<Style Selector="ComboBox#ServerDropdown.failure">
+		<Setter Property="Background" Value="{DynamicResource SystemControlErrorTextForegroundBrush}" />
+	</Style>
+	<Style Selector="ComboBox#ServerDropdown Grid.success">
+		<Setter Property="Background" Value="{DynamicResource SystemControlHighlightAltAccentBrush}" />
+	</Style>
+	<Style Selector="ComboBox#ServerDropdown Grid.failure">
+		<Setter Property="Background" Value="{DynamicResource SystemControlErrorTextForegroundBrush}" />
+	</Style>
+
+	<Style Selector="Button.carousel">
+		<Setter Property="Background" Value="Transparent"/>
+		<Setter Property="VerticalAlignment" Value="Stretch"/>
+		<Setter Property="HorizontalAlignment" Value="Left"/>
+		<Setter Property="Foreground" Value="Transparent"/>
+		<Setter Property="Padding" Value="4"/>
+	</Style>
+	<Style Selector="Button.carousel:disabled /template/ ContentPresenter#PART_ContentPresenter">
+		<Setter Property="Foreground" Value="Transparent"/>
+		<Setter Property="Background" Value="Transparent"/>
+	</Style>
+	<Style Selector="Button.carousel:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+		<Setter Property="Background" Value="{DynamicResource SystemRegionBrush}" />
+		<Setter Property="Opacity" Value=".8" />
+	</Style>
+	<Style Selector="Button.carousel icons|MaterialIcon">
+		<Setter Property="Width" Value="32" />
+		<Setter Property="Height" Value="64" />
+	</Style>
+	<Style Selector="Button.carousel icons|MaterialIcon /template/ Viewbox">
+		<Setter Property="Stretch" Value="Fill"/>
+	</Style>
+	<Style Selector="Button.carousel:pointerover icons|MaterialIcon">
+		<Setter Property="Foreground" Value="{DynamicResource SystemControlHighlightAccentBrush}"/>
+	</Style>
+	
 	<Style Selector="TabControl">
 		<Setter Property="Padding" Value="0" />
 	</Style>
-	<Style Selector="TabControl#LocalRemote /template/ WrapPanel">
+	<Style Selector="TabControl#LOCAL_REMOTE /template/ WrapPanel">
 		<Setter Property="HorizontalAlignment" Value="Right"/>
 	</Style>
-	<Style Selector="TabControl#LocalRemote /template/ ContentPresenter#PART_SelectedContentHost">
+	<Style Selector="TabControl#LOCAL_REMOTE /template/ ContentPresenter#PART_SelectedContentHost">
 		<Setter Property="Margin" Value="0"/>
 	</Style>
 	<Style Selector="TabItem">
@@ -104,9 +138,11 @@
 		<Setter Property="BorderBrush" Value="{DynamicResource SystemControlTransparentBrush}"/>
 	</Style>
 
-	<Style Selector="UniformGrid#MainControl Button">
+	<Style Selector="UniformGrid#SERVER_CONTROL Button">
 		<Setter Property="HorizontalAlignment" Value="Stretch" />
+		<Setter Property="HorizontalContentAlignment" Value="Center" />
 		<Setter Property="Margin" Value="4 4 0 0" />
+		<Setter Property="Padding" Value="6" />
 	</Style>
 
 	<!-- custom style for client expander -->
@@ -180,10 +216,10 @@
 	
 
 	<!-- Client lines terminated/disconnected -->
-	<Style Selector="Grid.disconnected TextBlock">
+	<Style Selector="ListBox#CLIENT_LIST Grid.disconnected TextBlock">
 		<Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
 	</Style>
-	<Style Selector="Grid.terminated TextBlock">
+	<Style Selector="ListBox#CLIENT_LIST Grid.terminated TextBlock">
 		<Setter Property="Foreground" Value="{DynamicResource SystemControlErrorTextForegroundBrush}" />
 	</Style>
 	

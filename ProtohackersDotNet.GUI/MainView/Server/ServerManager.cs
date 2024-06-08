@@ -1,77 +1,97 @@
-﻿using System.Net.NetworkInformation;
-using CommunityToolkit.Mvvm.ComponentModel;
-using ProtoHackersDotNet.GUI.Serialization;
-using ProtoHackersDotNet.GUI.EndPointVM;
+﻿using ProtoHackersDotNet.GUI.Serialization;
+using ProtoHackersDotNet.Servers;
+using ReactiveUI;
+using System.ComponentModel;
+using System.Reactive.Disposables;
 
 namespace ProtoHackersDotNet.GUI.MainView.Server;
 
 public sealed class ServerManager : IStateSaveable
 {
-    readonly ObservableValue<IServer<IClient>> serverObserver;
+    readonly ObservableValue<Problem> observableProblem;
 
-    public IServer<IClient> ServerValue {
-        get => this.serverObserver.LatestValue;
-        set => this.serverObserver.LatestValue = value;
+    readonly ValidateableValue<ServerVM?> observableServerVM;
+
+    /// <summary>Gets or sets the currently selected server.</summary>
+    public ServerVM? SelectedServer {
+        get => this.observableServerVM?.CurrentValue;
+        set => this.observableServerVM.CurrentValue = observableServerVM.CurrentValue?.Server.CurrentlyListening ?? false
+            ? ThrowInvalidOperationException<ServerVM>("Server is currently running!")
+            : value;
+    }
+    public IObservable<ServerVM?> SelectedServerChanges => observableServerVM.Value;
+
+    /// <summary>Gets or sets the currently selected problem.</summary>
+    public Problem SelectedProblem {
+        get => this.observableProblem.CurrentValue;
+        set => this.observableProblem.CurrentValue = Problems.Contains(value) ? value
+                : ThrowArgumentOutOfRangeException<Problem>();
     }
 
-    /// <summary>Provides updates to the value of <see cref="ServerManager.ServerValue"/> 
-    /// as it changes.</summary>
-    public IObservable<IServer<IClient>> Server => this.serverObserver.Values;
-    
-    public ObservableCollection<IServer<IClient>> Servers { get; }
+    /// <summary>Provides updates when the value of <see cref="ServerVM.Server"/> changes.</summary>
+    public IObservable<IServer?> Server => this.observableServerVM.Value.Select(vm => vm?.Server);
 
-    public SelectableEndPoint LocalEndPoint { get; }
-    public TextEndPoint RemoteEndPoint { get; }
+    /// <summary>Provides updates when the validity of the server changes.</summary>
+    public IObservable<bool> ServerValid => this.observableServerVM.Valid;
 
-    readonly StartServerCommand startServerCommand;
-    public TestServerCommand TestServerCommand { get; }
+    /// <summary>Gets the current selected server.</summary>
+    public IServer? CurrentServer => this.observableServerVM.CurrentValue?.Server;
 
-    public ServerManager(IEnumerable<IServer<IClient>> servers, ServerManagerState options,
-        StartServerCommand startServerCommand, ClearLogCommand clearLogsCommand, TestServerCommand testServerCommand)
+    /// <summary>Gets the known set of problems.</summary>
+    public ReadOnlyObservableCollection<Problem> Problems { get; }
+
+    [SuppressMessage("Style", "IDE0044:Add readonly modifier", Justification = "Bind target")]
+    ReadOnlyObservableCollection<ServerVM> servers;
+
+    /// <summary>Gets the current set of available servers.</summary>
+    /// <remarks>Filtered based on <see cref="SelectedProblem"/> value.</remarks>
+    public ReadOnlyObservableCollection<ServerVM> Servers => this.servers;
+
+    readonly SourceCache<ServerVM, ServerVM> serverCache = new(server => server);
+
+    readonly CompositeDisposable subscriptions;
+
+    public ServerManager(IEnumerable<Problem> problems, IEnumerable<IServer> servers, ServerManagerState options)
     {
-        Servers = new(servers);
-        var initialServer = Servers.FirstOrDefault(server => server.Name.Value == options.Server, Servers.First());
-        this.serverObserver = new(initialServer);
+        var initialProblem = problems.FirstOrDefault(problem => problem.Name == options.Problem,
+            defaultValue: problems.First());
+        this.observableProblem = new(initialProblem);
+
+        Problems = new ObservableCollection<Problem>(problems).AsReadOnlyObservableCollection();
+
+        // build the filterable Server collection
+        this.serverCache.AddOrUpdate(servers.Select(ServerVM.Create));
+        var filteredServersChanges = this.serverCache.Connect().Filter(this.observableProblem.Value.Select(BuiltFilter));
+        static Func<ServerVM, bool> BuiltFilter(Problem? problem) => serverVM
+            => problem is not null && serverVM.Server.Solution == problem;
+        var serverUpdatesSub = filteredServersChanges.ObserveOn(RxApp.MainThreadScheduler).Bind(out this.servers).Subscribe();
+
+        var initialServer = Servers.FirstOrDefault(server => server?.Server.Name.Value == options.Server,
+            defaultValue: Servers.FirstOrDefault()
+        );
+        this.observableServerVM = ValidateableValue<ServerVM?>.NotNull(initialServer);
+
+        // update the selected server when the server set changes
+        var selectedServerUpdateSub = filteredServersChanges.Subscribe(UpdateSelectedServer);
+        void UpdateSelectedServer(IChangeSet<ServerVM, ServerVM> changes) 
+            => SelectedServer = Servers.FirstOrDefault();
+
+        this.subscriptions = [serverUpdatesSub, selectedServerUpdateSub];
 
         // this should trigger all our server descriptions to load lazily.
-        _ = Task.WhenAll(Servers.Select(server => Task.Run(() => _ = server.Solution.Description)));
-
-        var localIP = SystemIPs.FirstOrDefault(ip => ip.ToString() == options.LocalEndPoint?.IP, IPAddress.Any);
-        LocalEndPoint = new(SystemIPs, localIP, options.LocalEndPoint?.Port);
-
-        // no extra validation done here, because a null value is okay.
-        _ = IPAddress.TryParse(options.RemoteEndPoint?.IP, out var ip);
-        RemoteEndPoint = new(ip, options.RemoteEndPoint?.Port);
-
-        // When the server changes, clear the logs.
-        Server.Subscribe(_ => clearLogsCommand.ClearClientsAndMessages()).DiscardDisposable();
-
-        this.startServerCommand = startServerCommand;
-        TestServerCommand = testServerCommand;
+        _ = Task.WhenAll(servers.Select(server => Task.Run(() => _ = server.Solution.Description)));
     }
 
-    public void StartServer() => this.startServerCommand.StartServer(serverObserver.LatestValue, LocalEndPoint.LatestValidEndPoint);
-
-    public async Task StopServer() => _ = await serverObserver.LatestValue.Stop();
-
-    public void TestServer() => TestServerCommand.Test(serverObserver.LatestValue, RemoteEndPoint.LatestValidEndPoint);
-
-    public void RefreshLocalIPs()
+    public async Task StopServer()
     {
-        LocalEndPoint.SelectableIPs.Clear();
-        LocalEndPoint.SelectableIPs.AddRange(SystemIPs);
+        if  (CurrentServer is not null) await CurrentServer.Stop();
     }
 
     /// <summary>Called when the app exits. Save the current state out to json.</summary>
-    public IState GetState() => new ServerManagerState() {
-            LocalEndPoint = LocalEndPoint.ToSerializable(),
-            RemoteEndPoint = RemoteEndPoint.ToSerializable(),
-            Server = serverObserver.LatestValue.Name.Value
-        };
+    public IState GetState() => new ServerManagerState() { 
+        Server = this.observableServerVM.CurrentValue?.Name,
+        Problem = this.observableProblem.CurrentValue.Name,
+    };
 
-    static IEnumerable<IPAddress> SystemIPs
-        => NetworkInterface.GetAllNetworkInterfaces().Where(netInterface => netInterface.OperationalStatus is OperationalStatus.Up)
-                           .SelectMany(netInterface => netInterface.GetIPProperties().UnicastAddresses)
-                           .Select(address => address.Address)
-                           .Prepend(IPAddress.Any);
+    public static readonly ServerManager Mockup = new(Problem.Problems, [MockupServer.Default], new());
 }

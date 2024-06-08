@@ -1,7 +1,6 @@
-﻿using ProtoHackersDotNet.Helpers.ObservableTypes;
-using ProtoHackersDotNet.Servers.Interface.Client;
-using System.Net.Sockets;
-using System.Reactive.Disposables;
+﻿using System.Reactive.Disposables;
+using ProtoHackersDotNet.AsciiString;
+using ProtoHackersDotNet.Helpers.ObservableTypes;
 using IConnectionStatus = ProtoHackersDotNet.Servers.Interface.Client.ConnectionStatus;
 
 namespace ProtoHackersDotNet.Servers.MobProxy;
@@ -10,9 +9,6 @@ public sealed class MobProxyClient : IClient
 {
     const byte LINE_DELIMITER = (byte) '\n';
     const byte WORD_DELIMITER = (byte) ' ';
-    const int MIN_ADDRESS_LENGTH = 26;
-    const int MAX_ADDRESS_LENGTH = 35;
-    const byte ADDRESS_START_BYTE = (byte) '7';
     readonly static ReadOnlyMemory<byte> LineDelimiterMemory = new([LINE_DELIMITER]);
     readonly static ReadOnlyMemory<byte> WordDelimiterMemory = new([WORD_DELIMITER]);
 
@@ -50,6 +46,8 @@ public sealed class MobProxyClient : IClient
             => HandleConnection(inStream, sequence => Transmit(outStream, sequence), observer, token);
     }
 
+    enum ConnectionDirection { Upstream, Downstream }
+
     readonly MobProxyClientOptions options;
     readonly Subject<IEvent> transmissionObserver = new();
     readonly CompositeDisposable connectionDisposables, observableDisposables;
@@ -67,16 +65,16 @@ public sealed class MobProxyClient : IClient
     readonly Subject<IEvent> eventsObservable = new();
 
     readonly ObservableValue<IConnectionStatus> connectionStatusObservable = new(IConnectionStatus.Connected);
-    public IObservable<IConnectionStatus> ConnectionStatus => this.connectionStatusObservable.Values;
-    public IConnectionStatus LatestConnectionStatus => this.connectionStatusObservable.LatestValue;
+    public IObservable<IConnectionStatus> ConnectionStatus => this.connectionStatusObservable.Value;
+    public IConnectionStatus LatestConnectionStatus => this.connectionStatusObservable.CurrentValue;
 
     public IObservable<string?> Status => Observable.Return<string?>(null);
 
     readonly ObservableValue<ByteSize> totalBytesTransmittedObservable = new(ByteSize.FromBytes(0));
-    public IObservable<ByteSize> TotalBytesTransmitted => this.totalBytesTransmittedObservable.Values;
+    public IObservable<ByteSize> TotalBytesTransmitted => this.totalBytesTransmittedObservable.Value;
 
     readonly ObservableValue<ByteSize> totalBytesReceivedObservable = new(ByteSize.FromBytes(0));
-    public IObservable<ByteSize> TotalBytesReceived => this.totalBytesReceivedObservable.Values;
+    public IObservable<ByteSize> TotalBytesReceived => this.totalBytesReceivedObservable.Value;
 
     #endregion
 
@@ -98,7 +96,7 @@ public sealed class MobProxyClient : IClient
 
                 var buffer = readResult.Buffer;
 
-                this.totalBytesReceivedObservable.LatestValue += buffer.ToByteSize();
+                this.totalBytesReceivedObservable.CurrentValue += buffer.ToByteSize();
                 observer.OnNext(DataReceptionEvent.FromClient(this, TranslateReception(buffer)));
 
                 while (buffer.Length > 0) {
@@ -106,7 +104,7 @@ public sealed class MobProxyClient : IClient
                     if (lineEnd is null) break;    // In the case of no line end, break, giving back the unsliced buffer.
 
                     // split the line out from the remaining buffer.
-                    (var line, buffer) = buffer.Divide(lineEnd.Value); 
+                    (var line, buffer) = buffer.Split(lineEnd.Value); 
 
                     line = ReplaceAddresses(line);
                     await transmitter(line);
@@ -118,24 +116,24 @@ public sealed class MobProxyClient : IClient
                     IncompleteMessageException.Throw(this);
             } while (!readResult.IsCompleted);
 
-            this.connectionStatusObservable.LatestValue = IConnectionStatus.Disconnected;
+            this.connectionStatusObservable.CurrentValue = IConnectionStatus.Disconnected;
             this.transmissionObserver.OnCompleted();
             observer.OnCompleted();
         }
         // Error resulting from bad client input. Report and terminate.
         catch (ClientException exception) {
 
-            this.connectionStatusObservable.LatestValue = IConnectionStatus.Exception;
+            this.connectionStatusObservable.CurrentValue = IConnectionStatus.Exception;
             observer.OnError(exception);
         }
         // Force close from client end.
         catch (IOException exception) {
 
-            this.connectionStatusObservable.LatestValue = IConnectionStatus.Exception;
+            this.connectionStatusObservable.CurrentValue = IConnectionStatus.Exception;
             observer.OnError(exception);
         }
         catch (Exception exception) {
-            this.connectionStatusObservable.LatestValue = IConnectionStatus.Exception;
+            this.connectionStatusObservable.CurrentValue = IConnectionStatus.Exception;
             observer.OnError(exception);
         }
         finally {
@@ -144,35 +142,44 @@ public sealed class MobProxyClient : IClient
         }
     }
 
+    /// <summary>Replaces all Bogouscoin address in <paramref name="line"/> with the Bogouscoin address
+    /// specified by <see cref="MobProxyClientOptions.ReplacementAddress"/></summary>
+    /// <param name="line">The line to inspect and replace addresses in.</param>
+    /// <returns>The line with any Bogouscoin addresses replaced.</returns>
     ReadOnlySequence<byte> ReplaceAddresses(ReadOnlySequence<byte> line)
     {
         AppendableSequence<byte> workingSequence = new();
-        SequencePosition position = line.Start;
+        ReadOnlySequence<byte> workingSegment = line;
+        SequencePosition position = line.Start, lastAppendPosition = line.Start;
         SequencePosition? delimiterPosition;
 
-        while ((delimiterPosition = line.PositionOf(WORD_DELIMITER)) is not null) {
-            // Slice up to the delimiter (exclusive)
-            var segment = line.Slice(position, delimiterPosition.Value);
+        while ((delimiterPosition = workingSegment.PositionOf(WORD_DELIMITER)) is not null) {
+            // split into [workingSegmentStart, delimiter), [delimiter, workingSegmentEnd]
+            (var segment, workingSegment) = workingSegment.Split(delimiterPosition.Value);
 
-            if (IsAddress(segment)) workingSequence.Append(this.options.ReplacementAddress);
-            else workingSequence.Append(segment);
+            if (IsAddress(segment)) {
+                // Append the segment before the address if any
+                var precedingSegment = line.Slice(lastAppendPosition, segment.Start);
+                if (!precedingSegment.IsEmpty) workingSequence.Append(precedingSegment);
 
-            workingSequence.Append(WordDelimiterMemory);
+                workingSequence.Append(this.options.ReplacementAddress).Append(WordDelimiterMemory);
 
-            // advance past the delimiter
-            position = line.GetPosition(1, delimiterPosition.Value); 
-            line = line.Slice(position);
+                // update the last appended position to be past the delimiter
+                lastAppendPosition = line.GetPosition(1, delimiterPosition.Value);
+            }
+
+            // Slice past the delimiter for the next iteration
+            workingSegment = workingSegment.Slice(1);
+            position = workingSegment.Start;
         }
 
-        // Handle the trailing segment after the last delimiter
-        if (!line.IsEmpty)
-            if (IsAddress(line)) {
-                workingSequence.Append(this.options.ReplacementAddress);
-                workingSequence.Append(LineDelimiterMemory);
-            }
-            else workingSequence.Append(line);
+        // Handle the trailing segment.
+        var finalSegment = line.Slice(lastAppendPosition, position);
+        workingSequence.Append(finalSegment);
 
-        return workingSequence;
+        // last character should always be end of line here. Trim it for comparison.
+        return IsAddress(workingSegment.TrimEnd(1)) ? workingSequence.Append(this.options.ReplacementAddress).Append(LineDelimiterMemory)
+                                                    : workingSequence.Append(workingSegment);
     }
 
     /// <summary>Transmits <paramref name="data"/> without attempting to translate it for messaging.</summary>
@@ -185,7 +192,7 @@ public sealed class MobProxyClient : IClient
             await networkStream.WriteAsync(memory, this.cancellationSource.Token);
 
         var bytesTransmitted = data.ToByteSize();
-        this.totalBytesTransmittedObservable.LatestValue += bytesTransmitted;
+        this.totalBytesTransmittedObservable.CurrentValue += bytesTransmitted;
 
         Transmission transmission = new(){
             Data = data.ToArray(),
@@ -193,6 +200,10 @@ public sealed class MobProxyClient : IClient
         };
         this.transmissionObserver.OnNext(DataTransmissionEvent.FromClient(this, transmission));
     }
+
+    const int MIN_ADDRESS_LENGTH = 26;
+    const int MAX_ADDRESS_LENGTH = 35;
+    const byte ADDRESS_START_BYTE = (byte) '7';
 
     static bool IsAddress(ReadOnlySequence<byte> segment)
         => segment.Length >= MIN_ADDRESS_LENGTH && segment.Length <= MAX_ADDRESS_LENGTH
@@ -210,13 +221,4 @@ public sealed class MobProxyClient : IClient
         Debug.Assert(this.connectionDisposables.IsDisposed);
         this.observableDisposables.Dispose();
     }
-}
-
-public static class AsciiSequenceHelper
-{
-    public static bool IsAlphanumeric(this ReadOnlySequence<byte> sequence)
-        => sequence.PositionOfAnyExceptInRange<byte>(0x00, 0x2F) is not null  // Control characters and punctuation
-		&& sequence.PositionOfAnyExceptInRange<byte>(0x3A, 0x40) is not null  // : ; < = > ? @
-        && sequence.PositionOfAnyExceptInRange<byte>(0x5B, 0x60) is not null  // [ \ ] ^ _ `
-        && sequence.PositionOfAnyExceptInRange<byte>(0x7B, 0xFF) is not null; // { | } ~ and beyond
 }

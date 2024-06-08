@@ -1,33 +1,31 @@
 ﻿using ProtoHackersDotNet.GUI.MainView.Client;
+using ProtoHackersDotNet.GUI.MainView.Grader;
 using ProtoHackersDotNet.GUI.MainView.Messages;
 using ProtoHackersDotNet.GUI.MainView.Server;
-using ProtoHackersDotNet.GUI.Serialization;
-using System.Reactive.Disposables;
-
 namespace ProtoHackersDotNet.GUI.MainView;
 
-public sealed class MainViewModel : IDisposable
+public sealed class MainViewModel
 {
-    readonly CompositeDisposable disposables;
-
-    public ServerManager ServerManager { get; }
-    public ClientManager ClientManager { get; }
-    public MessageManager MessageManager { get; }
-
     public MainViewModel(ServerManager serverManager, ClientManager clientManager, MessageManager messageManager,
-        StateSaver stateSaver)
+        GradingService gradingService, StartServerCommand startServerCommand, TestServerCommand testServerCommand, ClearLogCommand clearLogCommand)
     {
         ServerManager = serverManager;
         ClientManager = clientManager;
         MessageManager = messageManager;
+        GradingService = gradingService;
 
-        this.disposables = [
-            ClientManager,
-            ServerManager.Server.Subscribe(stateSaver.Save),
-            ServerManager.LocalEndPoint.Valid.Subscribe(stateSaver.Save),
-            ServerManager.RemoteEndPoint.Valid.Subscribe(stateSaver.Save),
-        ];
+        StartServerCommand = startServerCommand;
+        TestServerCommand  = testServerCommand;
+
+        // When the server changes, clear the logs.
+        serverManager.Server.Subscribe(onNext: _ => clearLogCommand.ClearClientsAndMessages()).DiscardUnsubscribe();
     }
 
-    public void Dispose() => this.disposables.Dispose();
+    public ServerManager ServerManager { get; }
+    public ClientManager ClientManager { get; }
+    public MessageManager MessageManager { get; }
+    public GradingService GradingService { get; }
+
+    public StartServerCommand StartServerCommand { get; }
+    public TestServerCommand TestServerCommand { get; }
 }

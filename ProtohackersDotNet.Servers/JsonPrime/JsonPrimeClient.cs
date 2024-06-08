@@ -23,7 +23,7 @@ protected override string TranslateReception(ReadOnlySequence<byte> buffer)
         => Encoding.UTF8.GetString(buffer);
 
     protected override async Task OnException(Exception exception, CancellationToken token)
-        => await Transmit(Malformed);
+        => await Transmit(Malformed, token);
 
     static PrimeQuery ProcessLineQuery(ReadOnlySequence<byte> line)
     {

@@ -11,12 +11,13 @@ using ProtoHackersDotNet.Servers.BudgetChat;
 using ProtoHackersDotNet.GUI.MainView;
 using ProtoHackersDotNet.GUI.MainView.Client;
 using ProtoHackersDotNet.GUI.MainView.Messages;
-using ProtoHackersDotNet.GUI.MainView.ProtoHackerApi;
+using ProtoHackersDotNet.GUI.MainView.Grader;
 using ProtoHackersDotNet.GUI.MainView.Server;
 using ProtoHackersDotNet.GUI.Serialization;
 using ProtoHackersDotNet.Servers.UdpDatabase;
 using Microsoft.Extensions.Options;
 using ProtoHackersDotNet.Servers.MobProxy;
+using ProtoHackersDotNet.Servers;
 
 namespace ProtoHackersDotNet.GUI;
 
@@ -53,11 +54,12 @@ public class App : Application
                                                .AddJsonFile(StateSaver.SETTINGS_PATH, optional: true).Build();
         services.AddSingleton<IConfiguration>(config).EndChain();
 
-        services.Configure<ServerManagerState>(config.GetSection(nameof(ServerManagerState)));
-        var protoHackerApiClientConfig = config.GetSection(nameof(ProtoHackerApiClientOptions));
-        services.AddOptions<ProtoHackerApiClientOptions>().Bind(protoHackerApiClientConfig)
+        var protoHackerApiClientConfig = config.GetSection(nameof(GraderClientOptions));
+        services.AddOptions<GraderClientOptions>().Bind(protoHackerApiClientConfig)
                 .ValidateAndAddResolver()
                 .RegisterOption<ServerManagerState>()
+                .RegisterOption<StartServerCommandState>()
+                .RegisterOption<TestServerCommandState>()
                 .RegisterOption<ClientVMFactoryOptions>()
                 .RegisterOption<MessageManagerOptions>()
                 .RegisterOption<BudgetChatServerOptions>()
@@ -67,7 +69,7 @@ public class App : Application
                 .EndChain();
 
         // http options.
-        services.AddHttpClient<ProtoHackerApiClient>(ConfigureClient);
+        services.AddHttpClient<GraderClient>(ConfigureClient);
         void ConfigureClient(HttpClient client)
         {
             client.DefaultRequestHeaders.UserAgent.Add(UserAgent);
@@ -75,24 +77,25 @@ public class App : Application
         }
 
                 // servers
-        services.AddSingleton<IServer<IClient>, EchoServer>()
-                .AddSingleton<IServer<IClient>, JsonPrimeServer>()
-                .AddSingleton<IServer<IClient>, PriceTrackerServer>()
-                .AddSingleton<IServer<IClient>, BudgetChatServer>()
-                .AddSingleton<IServer<IClient>, UdpDatabaseServer>()
-                .AddSingleton<IServer<IClient>, MobProxyServer>()
+        services.AddSingleton(Problem.Problems)
+                .AddSingleton<IServer, EchoServer>()
+                .AddSingleton<IServer, JsonPrimeServer>()
+                .AddSingleton<IServer, PriceTrackerServer>()
+                .AddSingleton<IServer, BudgetChatServer>()
+                .AddSingleton<IServer, UdpDatabaseServer>()
+                .AddSingleton<IServer, MobProxyServer>()
                 // view elements
                 .AddSingleton<MainWindow>()
                 // VM elements
-                .AddSingleton<ProtoHackerApiManager>()
+                .AddSingleton<GradingService>()
                 .AddSingleton<MainViewModel>()
                 .AddSingleton<ClientManager>()
                 .AddSingleton<ClientVMFactory>()
-                .AddSingleton<ServerManager>().AddStateResolver<ServerManager>()
+                .AddSingleton<ServerManager>().AddStateSaveableResolver<ServerManager>()
                 .AddSingleton<MessageManager>()
-                .AddSingleton<StartServerCommand>()
+                .AddSingleton<StartServerCommand>().AddStateSaveableResolver<StartServerCommand>()
                 .AddSingleton<ClearLogCommand>()
-                .AddSingleton<TestServerCommand>()
+                .AddSingleton<TestServerCommand>().AddStateSaveableResolver<TestServerCommand>()
                 .EndChain();
         return services;
     }
@@ -102,14 +105,15 @@ public static class ServiceCollectionHelper
 {
     public static IServiceCollection RegisterOption<T>(this IServiceCollection services) where T : class
         => services.AddOptions<T>().BindConfiguration(typeof(T).Name).ValidateAndAddResolver();
+
     public static IServiceCollection ValidateAndAddResolver<T>(this OptionsBuilder<T> services) where T : class
         => services.ValidateDataAnnotations().ValidateOnStart()
                    .Services
                    .AddSingleton(resolver => resolver.GetRequiredService<IOptions<T>>().Value);
 
-    public static IServiceCollection AddStateResolver<T>(this IServiceCollection services)
+    public static IServiceCollection AddStateSaveableResolver<T>(this IServiceCollection services)
         where T : class, IStateSaveable
-        => services.AddSingleton<IStateSaveable>(provider => provider.GetRequiredService<ServerManager>());
+        => services.AddSingleton<IStateSaveable>(provider => provider.GetRequiredService<T>());
 
     [SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Used for discard")]
     public static void EndChain(this IServiceCollection services) { }

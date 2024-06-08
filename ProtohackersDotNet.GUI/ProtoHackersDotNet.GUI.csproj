@@ -58,4 +58,13 @@
   <ItemGroup>
     <Folder Include="Helpers\" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="MainView\EndPointVM\SelectableEndPointView.axaml.cs">
+      <DependentUpon>SelectableEndPointView.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="MainView\EndPointVM\TextEndPointView.axaml.cs">
+      <DependentUpon>TextEndPointView.axaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
 </Project>

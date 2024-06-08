@@ -1,5 +1,5 @@
 ﻿using Material.Icons;
-using ProtoHackersDotNet.GUI.MainView.ProtoHackerApi.Events;
+using ProtoHackersDotNet.GUI.MainView.Grader.Events;
 
 namespace ProtoHackersDotNet.GUI.MainView.Messages;
 
@@ -27,7 +27,7 @@ public record class MessageVM : IComparable<MessageVM>
         MessageSource = displayEvent.Value.SourceType,
         Source = displayEvent.Value.Source,
         Timestamp = displayEvent.Value switch {
-            TestLogMessage logMessage => logMessage.Timestamp,
+            GradingLogMessage logMessage => logMessage.Timestamp,
             _ => displayEvent.Timestamp,
         },
         Type = displayEvent.Value.Type,
@@ -40,15 +40,15 @@ public record class MessageVM : IComparable<MessageVM>
             DataBroadcastEvent => MaterialIconKind.Broadcast,
             ClientConnectionEvent => MaterialIconKind.Link,
             ClientDisconnectEvent => MaterialIconKind.LinkOff,
-            TestRequestEvent => MaterialIconKind.ReceiptTextArrowRightOutline,
-            TestRequestResponseEvent => MaterialIconKind.ReceiptTextArrowLeftOutline,
-            TestLogMessage { MessageType: var type } => type switch {
+            GradingRequestEvent => MaterialIconKind.ReceiptTextArrowRightOutline,
+            GradingRequestResponseEvent => MaterialIconKind.ReceiptTextArrowLeftOutline,
+            GradingLogMessage { MessageType: var type } => type switch {
                 MessageType.Success => MaterialIconKind.ReceiptTextCheckOutline,
                 MessageType.Error => MaterialIconKind.ReceiptTextRemoveOutline,
                 MessageType.Notice => MaterialIconKind.ReceiptTextOutline,
                 _ => ThrowArgumentException<MaterialIconKind>($"Invalid message type {type} for log message."),
             },
-            TestResultEvent { MessageType: var type } => type switch {
+            GradingResultEvent { MessageType: var type } => type switch {
                 MessageType.Success => MaterialIconKind.Success,
                 MessageType.Error => MaterialIconKind.AlertCircleOutline,
                 _ => ThrowArgumentException<MaterialIconKind>($"Invalid message type {type} for result message."),
@@ -59,7 +59,7 @@ public record class MessageVM : IComparable<MessageVM>
         IsSuccess = displayEvent.Value.MessageType is MessageType.Success,
         IsServer = displayEvent.Value.SourceType is MessageSource.Server,
         IsClient = displayEvent.Value.SourceType is MessageSource.Client,
-        IsTest = displayEvent.Value.SourceType is MessageSource.TestApi,
+        IsTest = displayEvent.Value.SourceType is MessageSource.Grader,
     };
 
     public static MessageVM FromException(Exception exception, MessageSource sourceType, string sourceName) => new() {

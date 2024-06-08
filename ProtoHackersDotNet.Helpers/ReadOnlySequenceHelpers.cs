@@ -1,5 +1,4 @@
 ﻿using System.Buffers;
-using System.Reflection.PortableExecutable;
 using CommunityToolkit.Diagnostics;
 
 namespace ProtoHackersDotNet.Helpers;
@@ -29,6 +28,14 @@ public static class ReadOnlySequenceHelpers
         return lastNonMatchingPosition;
     }
 
+    /// <summary>Searches for the first position of any value outside of the range between <paramref name="lowInclusive"/> and 
+    /// <paramref name="highInclusive"/>, inclusive, or <see langword="null"/> if no value was found.</summary>
+    /// <typeparam name="T">The type of the sequence and values.</typeparam>
+    /// <param name="span">The sequence to search.</param>
+    /// <param name="lowInclusive">A lower bound, inclusive, of the excluded range.</param>
+    /// <param name="highInclusive">A upper bound, inclusive, of the excluded range.</param>
+    /// <returns>The position of the first occurrence of any value outside of the specified range.
+    /// If all of the values are inside of the specified range, returns <see langword="null"/>.</returns>
     public static SequencePosition? PositionOfAnyExceptInRange<T>(this ReadOnlySequence<T> sequence, T lowInclusive, T highInclusive)
         where T : unmanaged, IEquatable<T>, IComparable<T>
     {
@@ -57,7 +64,15 @@ public static class ReadOnlySequenceHelpers
     public static SequencePosition? PositionOf<T>(this ReadOnlySequence<T> buffer, T value, int offset) where T : IEquatable<T>
         => buffer.PositionOf(value) is SequencePosition position ? buffer.GetPosition(offset, position) : null;
 
-    /// <summary>Divides <paramref name="input"/> into two parts at <paramref name="position"/>.</summary>
+    /// <summary>Trims <paramref name="count"/> number of elements from the end of <paramref name="sequence"/>.</summary>
+    /// <typeparam name="T">The type of the sequence.</typeparam>
+    /// <param name="sequence">The sequence to trim.</param>
+    /// <param name="count">The number of elements to trim.</param>
+    /// <returns>The sequence, trimmed of <paramref name="count"/> elements from the end.</returns>
+    public static ReadOnlySequence<T> TrimEnd<T>(this ReadOnlySequence<T> sequence, int count) 
+        => sequence.Slice(0, sequence.Length - count);
+
+    /// <summary>Split <paramref name="input"/> into two parts at <paramref name="position"/>.</summary>
     /// <param name="input">The sequence to be split.</param>
     /// <param name="position">The position at which to split the sequence.</param>
     /// <returns>A tuple containing two <see cref="ReadOnlySequence{T}"/> instances:
@@ -66,7 +81,7 @@ public static class ReadOnlySequenceHelpers
     /// <item><description><c>Second</c>: The segment from the specified position to the end.</description></item>
     /// </list></returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when the <paramref name="position"/> is invalid for <paramref name="input"/>.</exception>
-    public static (ReadOnlySequence<T>, ReadOnlySequence<T>) Divide<T>(this ReadOnlySequence<T> input, SequencePosition position) 
+    public static (ReadOnlySequence<T>, ReadOnlySequence<T>) Split<T>(this ReadOnlySequence<T> input, SequencePosition position) 
         => (input.Slice(0, position), input.Slice(position));
 
     /// <summary>Converts <paramref name="data"/> into a hex string divided lines <paramref name="bytesPerLine"/> long.</summary>

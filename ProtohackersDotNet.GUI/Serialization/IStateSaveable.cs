@@ -1,16 +1,9 @@
-﻿using ProtoHackersDotNet.GUI.MainView.Server;
+﻿namespace ProtoHackersDotNet.GUI.Serialization;
 
-namespace ProtoHackersDotNet.GUI.Serialization;
-
+/// <summary>Type that can provide a serializable state.</summary>
 public interface IStateSaveable
 {
+    /// <summary>Get the current serializable state of this object.</summary>
+    /// <returns>The current serializable state of this object.</returns>
     IState GetState();
-}
-
-/// <summary>Marker interface for serialization.</summary>
-[JsonDerivedType(typeof(ServerManagerState))]
-public interface IState
-{
-    [JsonIgnore]
-    string ObjectName { get; }
 }

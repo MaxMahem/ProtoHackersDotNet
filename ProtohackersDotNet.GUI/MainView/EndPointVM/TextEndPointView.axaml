@@ -1,0 +1,27 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+						 xmlns:endpoint="using:ProtoHackersDotNet.GUI.MainView.EndPoint"
+             x:Name="TEXT_ENDPOINT"
+						 x:Class="ProtoHackersDotNet.GUI.MainView.EndPoint.TextEndPointView"
+						 x:DataType="endpoint:TextEndPoint">
+	<Grid ColumnDefinitions="1*, 2*" RowDefinitions="auto, auto">
+		<Label Target="{Binding #REMOTE_IP}"
+					 Grid.Column="0" Grid.Row="0"
+					 VerticalAlignment="Center" Classes="h2" Content="IP"/>
+		<TextBox Name="REMOTE_IP"
+						 Grid.Column="1" Grid.Row="0"
+						 HorizontalAlignment="Stretch" Classes="mono"
+						 Classes.invalid="{Binding !#TEXT_ENDPOINT.EndPoint.IPValid^}"
+						 Text="{Binding #TEXT_ENDPOINT.EndPoint.IPText}"/>
+		<Label Target="{Binding #REMOTE_PORT}"
+					 Grid.Column="0" Grid.Row="1"
+					 VerticalAlignment="Center" Classes="h2">Port</Label>
+		<NumericUpDown Grid.Column="1" Grid.Row="1" Name="REMOTE_PORT"
+									 Minimum="0" Maximum="65535" FormatString="0"
+									 ShowButtonSpinner="False" Classes="mono"
+									 Classes.invalid="{Binding !#TEXT_ENDPOINT.EndPoint.PortValid^}"
+									 Value="{Binding #TEXT_ENDPOINT.EndPoint.Port}"/>
+	</Grid>
+</UserControl>

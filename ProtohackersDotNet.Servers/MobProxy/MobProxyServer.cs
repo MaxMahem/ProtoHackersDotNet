@@ -6,7 +6,7 @@ public class MobProxyServer(MobProxyServerOptions options) : TcpServerBase<MobPr
 
     public override ServerName Name { get; } =  ServerName.From(nameof(MobProxyServer));
 
-    public override Problem Solution { get; } = new(5, "MobProxy");
+    public override Problem Solution => Problem.MobProxy;
 
     readonly MobProxyClientOptions clientOptions = new(options);
 

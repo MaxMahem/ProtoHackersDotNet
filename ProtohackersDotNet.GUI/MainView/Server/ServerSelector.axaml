@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+						 xmlns:md="clr-namespace:Markdown.Avalonia;assembly=Markdown.Avalonia"
+						 xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"
+						 xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+						 xmlns:server="using:ProtoHackersDotNet.GUI.MainView.Server"
+             x:Class="ProtoHackersDotNet.GUI.MainView.Server.ServerSelector"
+						 x:DataType="server:ServerManager"
+						 mc:Ignorable="d" d:DesignWidth="225" d:DesignHeight="400"
+						 d:DataContext="{x:Static server:ServerManager.Mockup}">
+	<DockPanel>
+		<DockPanel Name="SERVER_SELECT" DockPanel.Dock="Bottom">
+			<Label DockPanel.Dock="Left" Target="{Binding #ServerDropdown}" 
+						 Classes="h1" Content="Server" 
+						 VerticalAlignment="Center"/>
+			<ComboBox Name="ServerDropdown" HorizontalAlignment="Right"
+								Grid.IsSharedSizeScope="True" ItemTemplate="{StaticResource ServerTemplate}"
+								ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}"
+								IsEnabled="{Binding !Server^.Listening^}"
+								Classes.success="{Binding SelectedServerChanges^.TestSuccessful^}"
+								Classes.failure="{Binding SelectedServerChanges^.TestFailure^}" />
+		</DockPanel>
+		<Border BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" 
+						BorderThickness="1" CornerRadius="3">
+			<Grid ColumnDefinitions="* 3* *">
+				<Button Name="CarouselLeft" Grid.Column="0" ZIndex="1"
+								Classes="carousel"
+								PointerWheelChanged="CarouselButton_PointerWheelChanged"
+								Click="CarouselButtonLeft_Click"
+								IsEnabled="{Binding !Server^.Listening^}">
+					<icons:MaterialIcon Kind="ChevronLeft" />
+				</Button>
+				<Carousel Name="ProblemCarousel" Grid.ColumnSpan="3"
+									SelectedItem="{Binding SelectedProblem}"
+									ItemsSource="{Binding Problems}"
+									ItemTemplate="{StaticResource ProblemTemplate}" />
+				<Button Grid.Column="2" ZIndex="1"
+								Classes="carousel" HorizontalAlignment="Right"
+							  PointerWheelChanged="CarouselButton_PointerWheelChanged"
+								Click="CarouselButtonRight_Click"
+								IsEnabled="{Binding !Server^.Listening^}">
+					<icons:MaterialIcon Kind="ChevronRight" />
+				</Button>
+			</Grid>
+		</Border>
+	</DockPanel>
+</UserControl>

@@ -14,7 +14,7 @@ public sealed class BudgetChatServer(BudgetChatServerOptions options)
 
     public override ServerName Name { get; } = ServerName.From(nameof(BudgetChatServer));
 
-    public override Problem Solution { get; } = new(3, "BudgetChat");
+    public override Problem Solution => Problem.BudgetChat;
 
     public override IObservable<string?> Status => this.joinedClients.CurrentCount.Select(count => $"Joined Clients: {count}");
 

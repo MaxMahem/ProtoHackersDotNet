@@ -16,7 +16,7 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
     readonly TaskCompletionSource joinedCompleteSource = new();
     public Task Joined => this.joinedCompleteSource.Task;
 
-    public override IObservable<string?> Status => this.stateObserver.Values.Select(GetStatusFromState);
+    public override IObservable<string?> Status => this.stateObserver.Value.Select(GetStatusFromState);
 
     string GetStatusFromState(BudgetChatClientState state) => UserName is not null ? $"{state}: '{UserName}'" : state.ToString();
 
@@ -25,7 +25,7 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
     protected override async Task OnConnect(CancellationToken token)
     {
         await Transmit(new AsciiTransmission(server.WelcomeMessage), token);
-        this.stateObserver.LatestValue = BudgetChatClientState.Welcome;
+        this.stateObserver.CurrentValue = BudgetChatClientState.Welcome;
     }
 
     protected override async Task OnException(Exception exception, CancellationToken token)
@@ -39,9 +39,9 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
 
     protected override async Task OnDisconnect(CancellationToken token)
     {
-        if (this.stateObserver.LatestValue == BudgetChatClientState.Joined)
+        if (this.stateObserver.CurrentValue == BudgetChatClientState.Joined)
             await server.BroadcastPart(this, token);
-        this.stateObserver.LatestValue = BudgetChatClientState.Parted;
+        this.stateObserver.CurrentValue = BudgetChatClientState.Parted;
     }
     #endregion
 
@@ -52,7 +52,7 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
         try {
             ascii asciiLine = TrimInput(line);
 
-            switch (this.stateObserver.LatestValue) {
+            switch (this.stateObserver.CurrentValue) {
                 case BudgetChatClientState.Welcome:
                     var userName = AsciiName.From(asciiLine);
                     UserName = server.ValidateName(userName);
@@ -86,7 +86,7 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
     {
         await Transmit(new AsciiTransmission(server.GetPresentNotice(this)));
 
-        this.stateObserver.LatestValue = BudgetChatClientState.Joined;
+        this.stateObserver.CurrentValue = BudgetChatClientState.Joined;
         this.joinedCompleteSource.SetResult();
         await server.BroadcastJoin(this, token);
     }

@@ -48,16 +48,16 @@ public abstract class TcpClientBase : IClient, IDisposable
     readonly Subject<IEvent> eventsObservable = new();
 
     readonly ObservableValue<IConnectionStatus> connectionStatusObservable = new(IConnectionStatus.Connected);
-    public IObservable<IConnectionStatus> ConnectionStatus => this.connectionStatusObservable.Values;
-    public IConnectionStatus LatestConnectionStatus => this.connectionStatusObservable.LatestValue;
+    public IObservable<IConnectionStatus> ConnectionStatus => this.connectionStatusObservable.Value;
+    public IConnectionStatus LatestConnectionStatus => this.connectionStatusObservable.CurrentValue;
 
     public virtual IObservable<string?> Status => Observable.Return<string?>(null);
 
     readonly ObservableValue<ByteSize> totalBytesTransmittedObservable = new(ByteSize.FromBytes(0));
-    public IObservable<ByteSize> TotalBytesTransmitted => this.totalBytesTransmittedObservable.Values;
+    public IObservable<ByteSize> TotalBytesTransmitted => this.totalBytesTransmittedObservable.Value;
 
     readonly ObservableValue<ByteSize> totalBytesReceivedObservable = new(ByteSize.FromBytes(0));
-    public IObservable<ByteSize> TotalBytesReceived => this.totalBytesReceivedObservable.Values;
+    public IObservable<ByteSize> TotalBytesReceived => this.totalBytesReceivedObservable.Value;
 
     #endregion
 
@@ -79,14 +79,14 @@ public abstract class TcpClientBase : IClient, IDisposable
                 
                 var buffer = readResult.Buffer;
 
-                this.totalBytesReceivedObservable.LatestValue += buffer.ToByteSize();
+                this.totalBytesReceivedObservable.CurrentValue += buffer.ToByteSize();
                 observer.OnNext(DataReceptionEvent.FromClient(this, TranslateReception(buffer)));
 
                 while (buffer.Length > 0) {
                     SequencePosition? lineEnd = FindLineEnd(buffer); 
                     if (lineEnd is null) break;    // In the case of no line end, break, giving back the unsliced buffer.
 
-                    (var line, buffer) = buffer.Divide(lineEnd.Value); // split the line out from the remaining buffer.
+                    (var line, buffer) = buffer.Split(lineEnd.Value); // split the line out from the remaining buffer.
                     await ProcessLine(line, token);
                 }
 
@@ -95,7 +95,7 @@ public abstract class TcpClientBase : IClient, IDisposable
                 if (readResult.IsCompleted && !readResult.Buffer.IsEmpty) IncompleteMessageException.Throw(this);
             } while (!readResult.IsCompleted);
 
-            this.connectionStatusObservable.LatestValue = IConnectionStatus.Disconnected;
+            this.connectionStatusObservable.CurrentValue = IConnectionStatus.Disconnected;
             await OnDisconnect(token);
             this.transmissionObserver.OnCompleted();
             observer.OnCompleted();
@@ -104,7 +104,7 @@ public abstract class TcpClientBase : IClient, IDisposable
         catch (ClientException exception) {
             await OnException(exception, token);
 
-            this.connectionStatusObservable.LatestValue = IConnectionStatus.Exception;
+            this.connectionStatusObservable.CurrentValue = IConnectionStatus.Exception;
             await OnDisconnect(token);
             observer.OnError(exception);
         }
@@ -112,12 +112,12 @@ public abstract class TcpClientBase : IClient, IDisposable
         catch (IOException exception) {
             await OnException(exception, token);
 
-            this.connectionStatusObservable.LatestValue = IConnectionStatus.Exception;
+            this.connectionStatusObservable.CurrentValue = IConnectionStatus.Exception;
             await OnDisconnect(token);
             observer.OnError(exception);
         }
         catch (Exception exception) {
-            this.connectionStatusObservable.LatestValue = IConnectionStatus.Exception;
+            this.connectionStatusObservable.CurrentValue = IConnectionStatus.Exception;
             await OnDisconnect(token);
             observer.OnError(exception);
         }
@@ -175,7 +175,7 @@ public abstract class TcpClientBase : IClient, IDisposable
         await this.networkStream.WriteAsync(transmission.Data, token);
 
         var bytesTransmitted = transmission.Data.ToByteSize();
-        this.totalBytesTransmittedObservable.LatestValue += bytesTransmitted;
+        this.totalBytesTransmittedObservable.CurrentValue += bytesTransmitted;
 
         this.transmissionObserver.OnNext(DataTransmissionEvent.FromClient(this, transmission));
     }
@@ -192,7 +192,7 @@ public abstract class TcpClientBase : IClient, IDisposable
             await this.networkStream.WriteAsync(memory, token);
 
         var bytesTransmitted = data.ToByteSize();
-        this.totalBytesTransmittedObservable.LatestValue += bytesTransmitted;
+        this.totalBytesTransmittedObservable.CurrentValue += bytesTransmitted;
 
         Transmission transmission = new(){
             Data = data.ToArray(),

@@ -5,5 +5,5 @@ public enum MessageSource
     Unknown = 0,
     Server,
     Client,
-    TestApi
+    Grader
 }

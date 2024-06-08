@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:endpoint="using:ProtoHackersDotNet.GUI.MainView.EndPoint"
+             x:Class="ProtoHackersDotNet.GUI.MainView.EndPoint.SelectableEndPointView"
+						 x:Name="SELECTABLE_ENDPOINT"
+						 x:DataType="endpoint:SelectableEndPoint">
+	<Grid ColumnDefinitions="1*, 2*" RowDefinitions="auto, auto">
+		<Label    Grid.Column="0" Grid.Row="0" Target="{Binding #LOCAL_IP}"
+							VerticalAlignment="Center" Classes="h2">IP</Label>
+		<ComboBox Name="LOCAL_IP" Grid.Column="1" Grid.Row="0"
+							HorizontalAlignment="Stretch" Classes="mono"
+							ItemsSource="{Binding #SELECTABLE_ENDPOINT.EndPoint.SelectableIPs}"
+							SelectedItem="{Binding #SELECTABLE_ENDPOINT.EndPoint.IP}"/>
+		<Label         Grid.Column="0" Grid.Row="1" Target="{Binding #LOCAL_PORT}"
+									 VerticalAlignment="Center" Classes="h2">Port</Label>
+		<NumericUpDown Grid.Column="1" Grid.Row="1" Name="LOCAL_PORT"
+									 ShowButtonSpinner="False" Classes="mono"
+									 Classes.invalid="{Binding !#SELECTABLE_ENDPOINT.EndPoint.PortValid^}"
+									 Value="{Binding #SELECTABLE_ENDPOINT.EndPoint.Port}"
+									 Minimum="0" Maximum="65535" FormatString="0"/>
+	</Grid>
+</UserControl>

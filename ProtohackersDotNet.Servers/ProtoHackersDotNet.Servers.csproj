@@ -36,22 +36,22 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="BudgetChat\BudgetChat.md">
+    <Content Include="Problem\BudgetChat.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Echo\Echo.md">
+    <Content Include="Problem\Echo.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="JsonPrime\JsonPrime.md">
+    <Content Include="Problem\JsonPrime.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="PriceTracker\PriceTracker.md">
+    <Content Include="Problem\PriceTracker.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="UdpDatabase\UdpDatabase.md">
+    <Content Include="Problem\UdpDatabase.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-		<Content Include="MobProxy\MobProxy.md">
+		<Content Include="Problem\MobProxy.md">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
   </ItemGroup>
@@ -61,7 +61,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Resource Include="MobProxy\MobProxy.md">
+    <Resource Include="Problem\MobProxy.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Resource>
   </ItemGroup>

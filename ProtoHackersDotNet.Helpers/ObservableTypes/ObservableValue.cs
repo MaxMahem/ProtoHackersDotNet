@@ -12,14 +12,14 @@ public sealed class ObservableValue<T>(T initialValue) : IDisposable
     readonly BehaviorSubject<T> valueObserver = new(initialValue);
 
     /// <summary>Gets or sets the latest value. Setting this value will alert all observers.</summary>
-    public T LatestValue
+    public T CurrentValue
     {
         get => valueObserver.Value;
         set => valueObserver.OnNext(value);
     }
 
     /// <summary>Provides updates when the observed value changes.</summary>
-    public IObservable<T> Values => valueObserver.AsObservable();
+    public IObservable<T> Value => valueObserver.AsObservable();
 
     /// <summary>Notifies all observers of completion of the sequence.</summary>
     /// <remarks>Note, after doing this the value can no longer be changed!</remarks>

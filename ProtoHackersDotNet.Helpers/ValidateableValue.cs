@@ -1,7 +1,7 @@
 ﻿using System.Reactive.Linq;
 using System.Reactive.Subjects;
 
-namespace ProtoHackersDotNet.Helpers;
+namespace ProtoHackersDotNet.Helpers.ObservableTypes;
 
 /// <summary>Class that encapsulates a property of type <typeparamref name="T"/> and exposes a validation observable.</summary>
 /// <typeparam name="T">The type of the property encapsulated.</typeparam>
@@ -11,24 +11,28 @@ public class ValidateableValue<T>(Func<T?, bool> validator, T? initialValue = de
 {
     T? value = initialValue;
     readonly BehaviorSubject<bool> validityObserver = new(validator(initialValue));
+    readonly BehaviorSubject<T?> valueObserver = new(initialValue);
 
-    public T? Value
+    public T? CurrentValue
     {
         get => value;
         set
         {
             if (EqualityComparer<T>.Default.Equals(this.value, value)) return;
             this.value = value;
+            this.valueObserver.OnNext(value);
 
             bool valid = validator(value);
             if (valid != validityObserver.Value) validityObserver.OnNext(valid);
         }
     }
 
-    /// <summary>Reports if <see cref="Value"/> is valid or not.</summary>
+    public IObservable<T?> Value => this.valueObserver.AsObservable();
+
+    /// <summary>Reports if <see cref="CurrentValue"/> is valid or not.</summary>
     public IObservable<bool> Valid => validityObserver.AsObservable();
 
-    public IObservable<T?> ValidValue => validityObserver.Where().Select(_ => Value);
+    public IObservable<T?> ValidValues => validityObserver.Where().Select(_ => CurrentValue);
 
     public static ValidateableValue<T> NotNull(T? initialValue = default)
         => new(item => item is not null, initialValue);

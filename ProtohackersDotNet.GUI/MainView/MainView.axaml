@@ -7,9 +7,11 @@
 						 xmlns:interAct="clr-namespace:Avalonia.Xaml.Interactivity;assembly=Avalonia.Xaml.Interactivity"
 						 xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
 						 xmlns:li="using:LoadingIndicators.Avalonia"
-						 xmlns:mv="using:ProtoHackersDotNet.GUI.MainView"
-						 xmlns:mvc="using:ProtoHackersDotNet.GUI.MainView.Client"
 						 xmlns:behave="using:ProtoHackersDotNet.GUI.Behaviors"
+						 xmlns:mv="using:ProtoHackersDotNet.GUI.MainView"
+						 xmlns:endpoint="using:ProtoHackersDotNet.GUI.MainView.EndPoint"
+						 xmlns:client="using:ProtoHackersDotNet.GUI.MainView.Client"
+						 xmlns:server="using:ProtoHackersDotNet.GUI.MainView.Server"
 						 xmlns:i="using:ProtoHackersDotNet.Servers.Interface"
 						 xmlns:is="using:ProtoHackersDotNet.Servers.Interface.Server.Events"
 						 xmlns:ic="using:ProtoHackersDotNet.Servers.Interface.Client.Events"
@@ -20,107 +22,37 @@
     <!--<mv:MainViewModel />-->
   </Design.DataContext>
 	<Grid ColumnDefinitions="*, 1, 4*, 0" RowDefinitions="auto, *, auto" Name="MainGrid">
-		<DockPanel Name="ServerSelect" Grid.Column="0" Grid.Row="0" DataContext="{Binding ServerManager}">
-			<Label DockPanel.Dock="Left" Target="{Binding #TypeDropdown}" Classes="h1">Server</Label>
-			<ComboBox Name="TypeDropdown" HorizontalAlignment="Right"
-								ItemsSource="{Binding Servers}" SelectedItem="{Binding ServerValue}"
-								IsEnabled="{Binding !Server^.Listening^}">
-				<ComboBox.ItemTemplate>
-					<DataTemplate>
-						<TextBlock Text="{Binding Name}"/>
-					</DataTemplate>
-				</ComboBox.ItemTemplate>
-			</ComboBox>
-		</DockPanel>
-		<DockPanel Name="ServerData" Grid.Column="0" Grid.Row="1" DataContext="{Binding ServerManager}">
-			<StackPanel Name="EndPointTabs" DockPanel.Dock="Bottom">
-				<TabControl Name="LocalRemote">
+		<DockPanel Grid.Column="0" Grid.Row="0" Grid.RowSpan="2">
+			<StackPanel Name="ENDPOINT_TABS" DockPanel.Dock="Bottom">
+				<TabControl Name="LOCAL_REMOTE">
 					<TabItem Header="Local">
-						<Grid ColumnDefinitions="1*, 2*" RowDefinitions="auto, auto">
-							<Label    Grid.Column="0" Grid.Row="0" Target="{Binding #LocalIP}"
-												VerticalAlignment="Center" Classes="h2">IP</Label>
-							<ComboBox Name="LocalIP" Grid.Column="1" Grid.Row="0"
-												HorizontalAlignment="Stretch" Classes="mono"
-												ItemsSource="{Binding LocalEndPoint.SelectableIPs}" SelectedItem="{Binding LocalEndPoint.IP}"
-												IsEnabled="{Binding !Server^.Listening^}" />
-							<Label         Grid.Column="0" Grid.Row="1" Target="{Binding #LocalPort}"
-														 VerticalAlignment="Center" Classes="h2">Port</Label>
-							<NumericUpDown Grid.Column="1" Grid.Row="1" Name="LocalPort"
-														 ShowButtonSpinner="False" Classes="mono"
-														 Classes.invalid="{Binding !LocalEndPoint.PortValid^}"
-														 Value="{Binding LocalEndPoint.Port}"
-														 Minimum="0" Maximum="65535" FormatString="0"
-														 IsEnabled="{Binding !Server^.Listening^}" />
-						</Grid>
+						<endpoint:SelectableEndPointView EndPoint="{Binding StartServerCommand.LocalEndPoint}"
+																						 IsEnabled="{Binding !ServerManager.Server^.Listening^}"/>
 					</TabItem>
 					<TabItem Header="Remote">
-						<Grid ColumnDefinitions="1*, 2*" RowDefinitions="auto, auto">
-							<Label    Grid.Column="0" Grid.Row="0" Target="{Binding #RemoteIP}"
-												VerticalAlignment="Center" Classes="h2">IP</Label>
-							<TextBox Grid.Column="1" Grid.Row="0" Name="RemoteIP"
-											 HorizontalAlignment="Stretch" Classes="mono"
-											 Classes.invalid="{Binding !RemoteEndPoint.IPValid^}"
-											 Text="{Binding RemoteEndPoint.IPText}"
-											 IsEnabled="{Binding !TestServerCommand.TestRunning^}" />
-							<Label         Grid.Column="0" Grid.Row="1" Target="{Binding #RemotePort}"
-														 VerticalAlignment="Center" Classes="h2">Port</Label>
-							<NumericUpDown Grid.Column="1" Grid.Row="1" Name="RemotePort"
-														 Minimum="0" Maximum="65535" FormatString="0"
-														 ShowButtonSpinner="False" Classes="mono"
-														 Classes.invalid="{Binding !RemoteEndPoint.PortValid^}"
-														 Value="{Binding RemoteEndPoint.Port}"
-														 IsEnabled="{Binding !TestServerCommand.TestRunning^}" />
-						</Grid>
+						<endpoint:TextEndPointView EndPoint="{Binding TestServerCommand.RemoteEndPoint}"
+																			 IsEnabled="{Binding !TestServerCommand.Grader.Grading^}"/>
 					</TabItem>
 				</TabControl>
 			</StackPanel>
-			<Border Name="DescriptionBorder" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" BorderThickness="1" CornerRadius="3">
-				<md:MarkdownScrollViewer Markdown="{Binding Server^.Solution.Description}">
-					<md:MarkdownScrollViewer.Styles>
-						<Style Selector="ctxt|CTextBlock.Heading1">
-							<Setter Property="FontSize" Value="18"/>
-							<Setter Property="FontWeight" Value="Bold"/>
-						</Style>
-						<Style Selector="ctxt|CTextBlock.Heading2">
-							<Setter Property="FontSize" Value="16"/>
-							<Setter Property="FontWeight" Value="Bold"/>
-						</Style>
-						<Style Selector="ctxt|CTextBlock.Heading3">
-							<Setter Property="FontSize" Value="14"/>
-							<Setter Property="FontWeight" Value="Bold"/>
-							<Setter Property="Foreground" Value="{DynamicResource TextControlForeground}" />
-						</Style>
-					</md:MarkdownScrollViewer.Styles>
-				</md:MarkdownScrollViewer>
-			</Border>
+			<server:ServerSelector DataContext="{Binding ServerManager}" />
 		</DockPanel>
-		<UniformGrid Name="MainControl" Grid.Column="0" Grid.Row="2" 
-								 Columns="4" DataContext="{Binding ServerManager}">
+		<UniformGrid Name="SERVER_CONTROL" Grid.Column="0" Grid.Row="2" 
+								 Columns="4">
 			<li:LoadingIndicator Name="LoadingIndicator" Mode="Wave" SpeedRatio="1.0"
-													 IsActive="{Binding TestServerCommand.TestRunning^}"
-													 MinWidth="0" Width="{Binding #TestButton.Bounds.Width}"
-													 MinHeight="0" Height="{Binding #TestButton.Bounds.Height}" 
-													 HorizontalAlignment="Stretch" />
-			<Button Command="{Binding TestServer}" Name="TestButton">
-				<Button.IsEnabled>
-					<MultiBinding Converter="{x:Static BoolConverters.And}">
-						<Binding Path="Server^.Listening^"/>
-						<Binding Path="RemoteEndPoint.Valid^"/>
-						<Binding Path="!TestServerCommand.TestRunning^"/>
-					</MultiBinding>
-				</Button.IsEnabled>
-				<TextBlock>Test</TextBlock>
-			</Button>
-			<Button Command="{Binding StopServer}" IsEnabled="{Binding Server^.Listening^}">Stop</Button>
-			<Button Command="{Binding StartServer}" IsEnabled="{Binding !Server^.Listening^}">
-				<Button.IsEnabled>
-					<MultiBinding Converter="{x:Static BoolConverters.And}">
-						<Binding Path="!Server^.Listening^"/>
-						<Binding Path="LocalEndPoint.Valid^"/>
-					</MultiBinding>
-				</Button.IsEnabled>
-				<TextBlock>Start</TextBlock>
-			</Button>
+													 IsActive="{Binding GradingService.Grading^}"
+													 MinWidth="0" Width="{Binding #TEST_BUTTON.Bounds.Width}"
+													 MinHeight="0" Height="{Binding #TEST_BUTTON.Bounds.Height}" 
+													 HorizontalAlignment="Stretch" Margin="0 6 0 0"/>
+			<Button Name="TEST_BUTTON" Content="Test"
+							Command="{Binding TestServerCommand.Execute}"
+							IsEnabled="{Binding TestServerCommand.CanExecute^}"/>
+			<Button Command="{Binding ServerManager.StopServer}" 
+							IsEnabled="{Binding ServerManager.Server^.Listening^}"
+							Content="Stop"/>
+			<Button Command="{Binding StartServerCommand.Start}"
+							IsEnabled="{Binding StartServerCommand.CanExecute^}"
+							Content="Start"/>
 		</UniformGrid>
 		<GridSplitter Grid.Column="1" ResizeDirection="Columns" MinWidth="2" Margin="5 5"/>
 		<DockPanel Name="ServerStatus" Grid.Column="2" Grid.Row="0">
@@ -151,9 +83,9 @@
 								<Label Grid.Column="3" Classes="h2 header" HorizontalContentAlignment="Right">Recieved</Label>
 								<Label Grid.Column="4" Classes="h2 header" HorizontalContentAlignment="Right">Transmitted</Label>
 							</Grid>
-							<ListBox Name="CLIENT_LIST" ItemsSource="{Binding Clients}">
+							<ListBox Name="CLIENT_LIST" ItemsSource="{Binding Clients}"
+											 ItemTemplate="{StaticResource ClientTemplate}">
 								<ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-								<ListBox.DataTemplates><mvc:ClientDataTemplate/></ListBox.DataTemplates>
 								<interAct:Interaction.Behaviors>
 									<behave:ScrollToEndListBoxBehavior/>
 								</interAct:Interaction.Behaviors>
@@ -176,7 +108,7 @@
 									<ColumnDefinition Width="*" />
 									<ColumnDefinition Width="5*" />
 								</Grid.ColumnDefinitions>
-								<Label Name="SourceLabel" Grid.Column="0" Content="Source" 
+								<Label Name="Source_Label" Grid.Column="0" Content="Source" 
 											 Classes="h2 header filterLabel"
 											 Tapped="SourceLabel_Tapped">
 									<FlyoutBase.AttachedFlyout>
@@ -193,18 +125,18 @@
 									</FlyoutBase.AttachedFlyout>
 								</Label>
 								<Label Grid.Column="1" Classes="h2 header" HorizontalContentAlignment="Center">Timestamp</Label>
-								<Label Name="MessageLabel" Grid.Column="3" Content="Message" 
+								<Label Name="Message_Label" Grid.Column="3" Content="Message" 
 											 Classes="h2 header filterLabel" HorizontalContentAlignment="Right"
 											 Tapped="MessageLabel_Tapped">
 									<FlyoutBase.AttachedFlyout>
 										<Flyout Placement="BottomEdgeAlignedRight">
-											<TextBox Text="{Binding MessageSearch.LatestValue}" Watermark="Search Term" />
+											<TextBox Text="{Binding MessageSearch.CurrentValue}" Watermark="Search Term" />
 										</Flyout>
 									</FlyoutBase.AttachedFlyout>
 								</Label>
 							</Grid>
 							<ListBox Name="MESSAGE_LIST" ItemsSource="{Binding Messages}"
-											 ItemTemplate="{StaticResource MessageGridTemplate}">
+											 ItemTemplate="{StaticResource MessageTemplate}">
 								<interAct:Interaction.Behaviors>
 									<behave:ScrollToEndListBoxBehavior/>
 								</interAct:Interaction.Behaviors>

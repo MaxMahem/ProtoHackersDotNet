@@ -71,7 +71,7 @@ public static class StringToAsciiHelper
 {
     public static bool IsValidAscii(this string value) => ascii.IndexOfNonAscii(value) <= 0;
     public static ascii ToAscii(this string value) => ascii.IndexOfNonAscii(value) is int index and >= 0
-            ? ThrowHelper.ThrowArgumentException<ascii>($"Non ASCII character at index {index}")
+            ? ThrowArgumentException<ascii>($"Non ASCII character at index {index}")
             : new(value);
 }
 
@@ -80,13 +80,29 @@ public static class SpanToAsciiHelper
     public static bool IsValidAscii(this ReadOnlySpan<char> span) => ascii.IndexOfNonAscii(span) <= 0;
 
     public static ascii ToAscii(this ReadOnlySpan<char> span) => ascii.IndexOfNonAscii(span) is int index and >= 0
-            ? ThrowHelper.ThrowArgumentException<ascii>($"Non ASCII character at index {index}")
+            ? ThrowArgumentException<ascii>($"Non ASCII character at index {index}")
             : new(span);
 
     public static bool IsValidAscii(this ReadOnlySpan<byte> span) => ascii.IndexOfNonAscii(span) <= 0;
 
     public static ascii ToAscii(this ReadOnlySpan<byte> span) => ascii.IndexOfNonAscii(span) is int index and >= 0
-            ? ThrowHelper.ThrowArgumentException<ascii>($"Non ASCII character at index {index}")
+            ? ThrowArgumentException<ascii>($"Non ASCII character at index {index}")
             : new(span);
+}
 
+public static class SequenceAsciiHelper
+{
+    public static bool IsValidAscii(this ReadOnlySequence<byte> value) => ascii.PositionOfNonAscii(value) is not null;
+    public static ascii ToAscii(this ReadOnlySequence<byte> value) => ascii.PositionOfNonAscii(value) is not null
+            ? ThrowArgumentException<ascii>($"Non ASCII character found")
+            : new(value);
+
+    /// <summary>Determines if all values in this <paramref name="sequence"/> are Alphanumeric (0-9, A-Z, a-z).</summary>
+    /// <param name="sequence">The sequence to inspect.</param>
+    /// <returns><see langword="true"/> if all values in the sequence are alphanumeric, <see langword="false"/> otherwise.</returns>
+    public static bool IsAlphanumeric(this ReadOnlySequence<byte> sequence)
+        => sequence.PositionOfAnyExceptInRange<byte>(0x00, 0x2F) is not null  // Control characters and punctuation
+		&& sequence.PositionOfAnyExceptInRange<byte>(0x3A, 0x40) is not null  // : ; < = > ? @
+        && sequence.PositionOfAnyExceptInRange<byte>(0x5B, 0x60) is not null  // [ \ ] ^ _ `
+        && sequence.PositionOfAnyExceptInRange<byte>(0x7B, 0xFF) is not null; // { | } ~ and beyond
 }

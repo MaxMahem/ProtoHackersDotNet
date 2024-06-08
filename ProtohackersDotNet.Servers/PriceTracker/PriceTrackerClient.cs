@@ -1,4 +1,6 @@
-﻿namespace ProtoHackersDotNet.Servers.PriceTracker;
+﻿using ProtoHackersDotNet.Helpers.ObservableTypes;
+
+namespace ProtoHackersDotNet.Servers.PriceTracker;
 
 public sealed partial class PriceTrackerClient(TcpClient client, CancellationToken token) : TcpClientBase(client, token)
 {

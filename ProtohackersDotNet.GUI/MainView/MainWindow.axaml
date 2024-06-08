@@ -12,9 +12,10 @@
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450">
 	<DockPanel>
 		<StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
-			<Image Width="30" Height="30"
+			<Image Width="30" Height="30" IsHitTestVisible="False"
 					   Source="avares://ProtoHackersDotNet.GUI/Assets/ProtoHackersDotNet.ico" />
-			<TextBlock VerticalAlignment="Center" Classes="h1" Padding="4">ProtoHackers.Net</TextBlock>
+			<TextBlock Text="ProtoHackers.Net" VerticalAlignment="Center" 
+								 Classes="h1" Padding="4" IsHitTestVisible="False" />
 		</StackPanel>
 		<mv:MainView Margin="10 4 10 6" />
 	</DockPanel>

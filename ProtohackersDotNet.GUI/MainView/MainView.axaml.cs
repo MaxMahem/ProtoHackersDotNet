@@ -1,5 +1,9 @@
-﻿using Avalonia.Controls.Primitives;
+﻿using Avalonia.Controls.Presenters;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
+using Avalonia.VisualTree;
 using ProtoHackersDotNet.GUI.MainView.Messages;
 
 namespace ProtoHackersDotNet.GUI.MainView;
@@ -9,30 +13,32 @@ public partial class MainView : UserControl
     public MainView()
     {
         InitializeComponent();
-
-        // Unloaded += MainView_Unloaded;
+        // ProblemDescription.FindLogicalDescendantOfType<ScrollViewer>()!.TemplateApplied += DescriptionScrollViewer_TemplateApplied;
     }
 
-    private void MainView_Unloaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        
-    }
+    ScrollContentPresenter? descriptionScrollContentPresenter;
+
+    void DescriptionScrollViewer_TemplateApplied(object? sender, TemplateAppliedEventArgs e)
+        => this.descriptionScrollContentPresenter = e.NameScope.Get<ScrollContentPresenter>("PART_ContentPresenter");
+
+    void CarouselButton_PointerWheelChanged(object? sender, PointerWheelEventArgs e)
+        => this.descriptionScrollContentPresenter!.RaiseEvent(e);
 
     void SourceLabel_Tapped(object? sender, TappedEventArgs e)
     {
-        if (sender != SourceLabel) ThrowInvalidOperationException();
-        var vm = SourceLabel.DataContext as MessageManager ?? ThrowInvalidOperationException<MessageManager>();
+        if (sender != Source_Label) ThrowInvalidOperationException();
+        var vm = Source_Label.DataContext as MessageManager ?? ThrowInvalidOperationException<MessageManager>();
         if (vm.SourceFilter.Entries.Count is 0) return;
 
-        FlyoutBase.ShowAttachedFlyout(SourceLabel);
+        FlyoutBase.ShowAttachedFlyout(Source_Label);
     }
 
     void MessageLabel_Tapped(object? sender, TappedEventArgs e)
     {
-        if (sender != MessageLabel) ThrowInvalidOperationException();
-        var vm = MessageLabel.DataContext as MessageManager ?? ThrowInvalidOperationException<MessageManager>();
+        if (sender != Message_Label) ThrowInvalidOperationException();
+        var vm = Message_Label.DataContext as MessageManager ?? ThrowInvalidOperationException<MessageManager>();
         if (vm.SourceFilter.Entries.Count is 0) return;
 
-        FlyoutBase.ShowAttachedFlyout(MessageLabel);
+        FlyoutBase.ShowAttachedFlyout(Message_Label);
     }
 }

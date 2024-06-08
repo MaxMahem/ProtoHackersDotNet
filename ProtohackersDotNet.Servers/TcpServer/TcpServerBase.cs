@@ -23,9 +23,10 @@ public abstract class TcpServerBase<TClient> : IServer<TClient>
     public abstract Problem Solution { get; }
 
     readonly ObservableValue<IServerStatus> serverStatusObservable = new(IServerStatus.Stopped);
-    public IObservable<IServerStatus> ServerStatus => this.serverStatusObservable.Values;
+    public IObservable<IServerStatus> ServerStatus => this.serverStatusObservable.Value;
     public IObservable<bool> Listening => ServerStatus.Select(status => status is IServerStatus.Listening)
                                                       .DistinctUntilChanged();
+    public bool CurrentlyListening => this.serverStatusObservable.CurrentValue is IServerStatus.Listening;
 
     public virtual IObservable<string?> Status => Observable.Return<string?>(null);
 
@@ -49,7 +50,7 @@ public abstract class TcpServerBase<TClient> : IServer<TClient>
 
     public IConnectableObservable<IEvent> Start(IPEndPoint endPoint, CancellationToken token = default)
     {
-        if (this.serverStatusObservable.LatestValue is IServerStatus.Listening) 
+        if (this.serverStatusObservable.CurrentValue is IServerStatus.Listening) 
             ThrowInvalidOperationException("Server already started");
         this.cancellationSource.Dispose();
         this.cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -70,34 +71,33 @@ public abstract class TcpServerBase<TClient> : IServer<TClient>
 
         try {
             listener.Start();
-            this.serverStatusObservable.LatestValue = IServerStatus.Listening;
+            this.serverStatusObservable.CurrentValue = IServerStatus.Listening;
             await OnStartup();
             observer.OnNext(new ServerStartupEvent(this));
 
-            do {
-                // wait here for new connection
+            do {// wait here for new connection
                 var newTcpConnection = await listener.AcceptTcpClientAsync(token);
                 var connectedClient = CreateClient(newTcpConnection, token);
                 this.activeClients[connectedClient] = Unit.Default;
 
-                // subscribe to track completion of the client.
+                // this subscription track completion of the client
                 connectedClient.Events.Finally(async () => await ClientDisconnect(connectedClient))
                                .Subscribe(Stub.DoNothing, Stub.IgnoreError, token);
 
-                // this exposes the client externally so it may be subscribed to.
+                // this exposes the client externally
                 observer.OnNext(new ClientConnectionEvent(this, connectedClient));
-            } while (true); // only exit is via exception.
+            } while (true); // only exit is via exception/cancel.
         } // operation canceled.
         catch (OperationCanceledException exception) when (exception.CancellationToken.IsCancellationRequested) {
             observer.OnNext(new ServerShutdownEvent(this));
             observer.OnCompleted();
-            ServerEventObservable.OnCompleted();
-            this.serverStatusObservable.LatestValue = IServerStatus.Stopped;
+            ServerEventObservable.OnCompleted(); // to complete the merged observable must complete both observables
+            this.serverStatusObservable.CurrentValue = IServerStatus.Stopped;
         } // unhandled exception.
         catch (Exception exception) {
             observer.OnNext(new ServerTerminatedEvent(this, exception));
             observer.OnError(exception);
-            this.serverStatusObservable.LatestValue = IServerStatus.Terminated;
+            this.serverStatusObservable.CurrentValue = IServerStatus.Terminated;
         }
         finally { // server shutdown
             DisposeClients();
@@ -127,7 +127,7 @@ public abstract class TcpServerBase<TClient> : IServer<TClient>
 
     public async Task<IDisposable> Stop()
     {
-        if (this.serverStatusObservable.LatestValue is not IServerStatus.Listening)
+        if (this.serverStatusObservable.CurrentValue is not IServerStatus.Listening)
             ThrowInvalidOperationException("Server not started");
 
         Debug.Assert(this.cancellationSource is not null);

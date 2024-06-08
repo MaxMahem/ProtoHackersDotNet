@@ -18,23 +18,23 @@ public sealed class ObservableStore<TKey, TValue>(Func<TValue, TKey> keySelector
 
     public int Count => store.Count;
 
-    public IObservable<int> CurrentCount => countObservable.Values;
+    public IObservable<int> CurrentCount => countObservable.Value;
 
     public void Add(TValue value)
     {
         _ = store.TryAdd(keySelector(value), value) || ThrowArgumentException<bool>("Value already exists.");
-        countObservable.LatestValue = Count;
+        countObservable.CurrentValue = Count;
     }
 
     public void Remove(TValue value)
     {
         _ = store.TryRemove(keySelector(value), out _) || ThrowArgumentException<bool>("Value not found.");
-        countObservable.LatestValue = Count;
+        countObservable.CurrentValue = Count;
     }
 
     public void Clear()
     {
         store.Clear();
-        countObservable.LatestValue = 0;
+        countObservable.CurrentValue = 0;
     }
 }

@@ -6,24 +6,27 @@
 /// <typeparam name="T">The type of the elements in this sequence.</typeparam>
 public sealed class AppendableSequence<T>
 {
-    ReadOnlyMemorySegment<T>? first = null;
-    ReadOnlyMemorySegment<T>? current = null;
+    ReadOnlyMemorySegment<T>? first;
+    ReadOnlyMemorySegment<T>? current;
 
     /// <summary>Appends the values of <paramref name="sequence"/> to the end of the current sequence.</summary>
     /// <param name="sequence">The sequence to append.</param>
-    public void Append(ReadOnlySequence<T> sequence)
+    /// <returns>This sequence for chaining.</returns>
+    public AppendableSequence<T> Append(ReadOnlySequence<T> sequence)
     {
         SequencePosition position = sequence.Start;
-        while (sequence.TryGet(ref position, out ReadOnlyMemory<T> memory, true))
-            Append(memory);
+        while (sequence.TryGet(ref position, out ReadOnlyMemory<T> memory, true)) Append(memory);
+        return this;
     }
 
     /// <summary>Appends the value of <paramref name="memory"/> to the current sequence.</summary>
     /// <param name="memory">The memory to append.</param>
-    public void Append(ReadOnlyMemory<T> memory)
+    /// <returns>This sequence for chaining.</returns>
+    public AppendableSequence<T> Append(ReadOnlyMemory<T> memory)
     {
         if (current is null) first = current = new ReadOnlyMemorySegment<T>(memory);
         else current = current.Append(memory);
+        return this;
     }
 
     /// <summary>Returns this as a <see cref="ReadOnlySequence{T}"/>.</summary>
@@ -42,7 +45,7 @@ public sealed class AppendableSequence<T>
     {
         /// <summary>Creates a new <see cref="ReadOnlyMemorySegment{TMemory}"/> with an initial value of 
         /// <paramref name="memory"/>.</summary>
-        /// <param name="memory">The <see cref="ReadOnlyMemory{T}"/> to initalize the segment with.</param>
+        /// <param name="memory">The <see cref="ReadOnlyMemory{T}"/> to initialize the segment with.</param>
         public ReadOnlyMemorySegment(ReadOnlyMemory<TMemory> memory) => Memory = memory;
 
         /// <summary>Appends <paramref name="memory"/> to the next operator of this memory as a new 

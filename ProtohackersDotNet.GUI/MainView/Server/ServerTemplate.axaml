@@ -1,0 +1,22 @@
+﻿<ResourceDictionary xmlns="https://github.com/avaloniaui"
+										xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+										xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+										xmlns:pa="using:ProtoHackersDotNet.GUI.MainView.ProtoHackerApi.Events"
+										xmlns:s="using:ProtoHackersDotNet.GUI.MainView.Server">
+	<DataTemplate x:Key="ServerTemplate" DataType="s:ServerVM">
+		<Grid RowDefinitions="Auto" 
+					Classes.success="{Binding TestSuccessful^}"
+					Classes.failure="{Binding TestFailure^}" >
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="auto" SharedSizeGroup="Icon" />
+				<ColumnDefinition Width="*" SharedSizeGroup="Name" />
+			</Grid.ColumnDefinitions>
+			<icons:MaterialIcon Grid.Column="0"
+													Kind="{Binding TestResults^, Converter={x:Static s:ServerConverters.GradeToIcon}}"
+													IsVisible="{Binding HasResults^}"
+													ToolTip.Tip="{Binding LastError^}"/>
+			<TextBlock Grid.Column="1" HorizontalAlignment="Left"
+								 Text="{Binding Name}" />
+		</Grid>
+	</DataTemplate>
+</ResourceDictionary>

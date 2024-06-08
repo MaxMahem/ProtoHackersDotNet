@@ -1,4 +1,4 @@
-﻿using ProtoHackersDotNet.GUI.MainView.ProtoHackerApi;
+﻿using ProtoHackersDotNet.GUI.MainView.Grader;
 namespace ProtoHackersDotNet.GUI.MainView.Messages;
 
 public class EventSource(IObservable<IEvent> eventStream, CancellationToken token = default) 
@@ -21,9 +21,9 @@ public class EventSource(IObservable<IEvent> eventStream, CancellationToken toke
             MessageSource = MessageSource.Client,
         };
 
-    public static EventSource FromTestApi(ProtoHackerApiManager apiManager, IObservable<IEvent> testEvents)
+    public static EventSource FromGrader(GradingService gradingService, IObservable<IEvent> testEvents)
         => new(testEvents) { 
-            SourceNames = apiManager.EventSources,
-            MessageSource = MessageSource.TestApi,
+            SourceNames = gradingService.EventSources,
+            MessageSource = MessageSource.Grader,
         };
 }

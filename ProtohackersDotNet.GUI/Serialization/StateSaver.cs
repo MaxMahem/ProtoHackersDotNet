@@ -1,6 +1,4 @@
-﻿using ProtoHackersDotNet.GUI.MainView.Server;
-
-namespace ProtoHackersDotNet.GUI.Serialization;
+﻿namespace ProtoHackersDotNet.GUI.Serialization;
 
 public class StateSaver(IEnumerable<IStateSaveable> saveables)
 {
@@ -9,7 +7,6 @@ public class StateSaver(IEnumerable<IStateSaveable> saveables)
     public void Save()
     {
         var stateDictionary = saveables.Select(saveable => saveable.GetState()).ToDictionary(state => state.ObjectName);
-        // AppStates states = new(ServerManager.GetState());
         using var writer = File.Create(SETTINGS_PATH);
         JsonSerializer.Serialize(writer, stateDictionary, AppStateMetaData.Default.DictionaryStringIState);
         writer.Flush();

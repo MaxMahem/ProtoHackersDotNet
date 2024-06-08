@@ -48,9 +48,9 @@ public partial class MessageManager : ObservableObject
         this.messageCache.Connect()
             .Filter(this.sourceFilter.Connect().AutoRefreshOnObservable(messageVM => messageVM.SelectedUpdates)
                                      .Select(BuildSourceFilter))
-            .Filter(MessageSearch.Values.Select(BuildMessageFilter))
+            .Filter(MessageSearch.Value.Select(BuildMessageFilter))
             .ObserveOn(RxApp.MainThreadScheduler)
-            .SortAndBind(out this.messages).Subscribe().DiscardDisposable();
+            .SortAndBind(out this.messages).Subscribe().DiscardUnsubscribe();
 
         static Func<MessageVM, bool> BuildMessageFilter(string? search) => messageVM 
             => string.IsNullOrEmpty(search) || messageVM.Message.Contains(search, StringComparison.CurrentCulture);
@@ -68,7 +68,7 @@ public partial class MessageManager : ObservableObject
         streamSource.EventStream.Timestamp().ObserveOn(TaskPoolScheduler.Default).Subscribe(
             onNext: streamEvent => PostMessage(MessageVM.FromEvent(streamEvent)), 
             onError: exception => PostException(exception, streamSource.MessageSource, streamSource.SourceNames.First())
-        ).DiscardDisposable();
+        ).DiscardUnsubscribe();
     }
 
     readonly object postGate = new();
@@ -103,6 +103,6 @@ public partial class MessageManager : ObservableObject
         this.eventSources.ExceptWith(sourcesToRemove);
         this.sourceFilter.RemoveKeys(sourcesToRemove.SelectMany(source => source.SourceNames));
 
-        MessageSearch.LatestValue = null;
+        MessageSearch.CurrentValue = null;
     }
 }

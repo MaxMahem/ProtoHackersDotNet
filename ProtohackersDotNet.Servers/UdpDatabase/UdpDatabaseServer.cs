@@ -6,7 +6,7 @@ using ReadOnlyBytes = System.ReadOnlyMemory<byte>;
 
 namespace ProtoHackersDotNet.Servers.UdpDatabase;
 
-public class UdpDatabaseServer(UdpDatabaseServerOptions options) : IServer<IClient>
+public class UdpDatabaseServer(UdpDatabaseServerOptions options) : IServer
 {
     const byte KEY_SEPERATOR = (byte)'=';
     public const int MAX_MESSAGE_BYTES = 1000;
@@ -18,22 +18,21 @@ public class UdpDatabaseServer(UdpDatabaseServerOptions options) : IServer<IClie
 
     public ServerName Name => ServerName.From(nameof(UdpDatabaseServer));
 
-    public Problem Solution => new(4, "UdpDatabase");
+    public Problem Solution => Problem.UdpDatabase;
 
     public IPEndPoint? LocalEndPoint { get; private set; }
 
     readonly ObservableValue<IServerStatus> serverStatusObservable = new(IServerStatus.Stopped);
-    public IObservable<IServerStatus> ServerStatus => this.serverStatusObservable.Values;
+    public IObservable<IServerStatus> ServerStatus => this.serverStatusObservable.Value;
     public IObservable<bool> Listening => ServerStatus.Select(status => status is IServerStatus.Listening)
                                                       .DistinctUntilChanged();
+    public bool CurrentlyListening => this.serverStatusObservable.CurrentValue is IServerStatus.Listening;
 
     public virtual IObservable<string?> Status => Observable.Return<string?>(null);
 
-    public IEnumerable<IClient> Clients => [];
-
     public IConnectableObservable<IEvent> Start(IPEndPoint endPoint, CancellationToken token = default)
     {
-        if (this.serverStatusObservable.LatestValue is IServerStatus.Listening)
+        if (this.serverStatusObservable.CurrentValue is IServerStatus.Listening)
             ThrowInvalidOperationException("Server already started");
         this.cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(token);
 
@@ -51,7 +50,7 @@ public class UdpDatabaseServer(UdpDatabaseServerOptions options) : IServer<IClie
         UdpClient udpClient = new(LocalEndPoint);
 
         try {
-            this.serverStatusObservable.LatestValue = IServerStatus.Listening;
+            this.serverStatusObservable.CurrentValue = IServerStatus.Listening;
 
             observer.OnNext(new ServerStartupEvent(this));
 
@@ -64,12 +63,12 @@ public class UdpDatabaseServer(UdpDatabaseServerOptions options) : IServer<IClie
         catch (OperationCanceledException exception) when (exception.CancellationToken.IsCancellationRequested) {
             observer.OnNext(new ServerShutdownEvent(this));
             observer.OnCompleted();
-            this.serverStatusObservable.LatestValue = IServerStatus.Stopped;
+            this.serverStatusObservable.CurrentValue = IServerStatus.Stopped;
         } // unhandled exception.
         catch (Exception exception) {
             observer.OnNext(new ServerTerminatedEvent(this, exception));
             observer.OnError(exception);
-            this.serverStatusObservable.LatestValue = IServerStatus.Terminated;
+            this.serverStatusObservable.CurrentValue = IServerStatus.Terminated;
         }
         finally { // server shutdown
             udpClient.Close();
@@ -128,7 +127,7 @@ public class UdpDatabaseServer(UdpDatabaseServerOptions options) : IServer<IClie
 
     public async Task<IDisposable> Stop()
     {
-        if (this.serverStatusObservable.LatestValue is not IServerStatus.Listening)
+        if (this.serverStatusObservable.CurrentValue is not IServerStatus.Listening)
             ThrowInvalidOperationException("Server not started");
 
         Debug.Assert(this.cancellationSource is not null);

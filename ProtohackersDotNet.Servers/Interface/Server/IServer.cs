@@ -14,6 +14,9 @@ public interface IServer : IDisposable
     /// <summary>Provides the current status of the servers listening state.</summary>
     IObservable<bool> Listening { get; }
 
+    /// <summary>Gets the current listening state of the server.</summary>
+    bool CurrentlyListening { get; }
+
     /// <summary>Provides an optional text status detailing the current status of the server.</summary>
     IObservable<string?> Status { get; }
 
