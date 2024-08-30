@@ -2,9 +2,15 @@
 
 namespace ProtoHackersDotNet.GUI.MainView.EndPoint;
 
-public partial class TextEndPoint(IPAddress? ip, ushort? port) : EndPointVM(ip, port)
+public class TextEndPoint : EndPointVM
 {
-    string? _IPText = ip?.ToString();
+    public TextEndPoint(IPAddress? ip, ushort? port) : base(ip, port)
+    {
+        _IPText = IP.Value?.ToString();
+    }
+
+
+    string? _IPText;
     public string? IPText
     {
         get => _IPText;
@@ -12,7 +18,7 @@ public partial class TextEndPoint(IPAddress? ip, ushort? port) : EndPointVM(ip, 
         {
             if (value == _IPText) return;
             _IPText = value;
-            IP = value switch
+            IP.Value = value switch
             {
                 string value4 when value.Count('.') is 3 && TryParseIPv4(value4, out var ipv4) => ipv4,
                 string value6 when value.Contains(':') && IPAddress.TryParse(value6, out var ipv6) => ipv6,

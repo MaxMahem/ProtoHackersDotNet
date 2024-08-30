@@ -24,7 +24,7 @@ public class StartServerCommand : IObservableCommand, IStateSaveable
             ip: IPAddress.TryParse(state.LocalEndPoint?.IP, out var ip) ? ip : null,
             port: state.LocalEndPoint?.Port
         );
-        CanExecute = Observable.CombineLatest(Executing, LocalEndPoint.Valid, (executing, valid) => !executing && valid)
+        CanExecute = Observable.CombineLatest(Executing, LocalEndPoint.EndPoint.Validity, (executing, valid) => !executing && valid)
                                .DistinctUntilChanged();
     }
 
@@ -40,7 +40,7 @@ public class StartServerCommand : IObservableCommand, IStateSaveable
     public void Start()
     {
         var server = this.serverManager.CurrentServer ?? ThrowArgumentNullException<IServer>();
-        var localEndPoint = LocalEndPoint.LatestEndPoint ?? ThrowArgumentNullException<IPEndPoint>();
+        var localEndPoint = LocalEndPoint.EndPoint.Value ?? ThrowArgumentNullException<IPEndPoint>();
         Start(server, localEndPoint);
     }
 

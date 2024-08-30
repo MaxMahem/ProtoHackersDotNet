@@ -66,7 +66,7 @@ public sealed class MobProxyClient : IClient
 
     readonly ObservableValue<IConnectionStatus> connectionStatusObservable = new(IConnectionStatus.Connected);
     public IObservable<IConnectionStatus> ConnectionStatus => this.connectionStatusObservable.Changes;
-    public IConnectionStatus LatestConnectionStatus => this.connectionStatusObservable.CurrentValue;
+    public IConnectionStatus LatestConnectionStatus => this.connectionStatusObservable.Value;
 
     public IObservable<string?> Status => Observable.Return<string?>(null);
 
@@ -96,7 +96,7 @@ public sealed class MobProxyClient : IClient
 
                 var buffer = readResult.Buffer;
 
-                this.totalBytesReceivedObservable.CurrentValue += buffer.ToByteSize();
+                this.totalBytesReceivedObservable.Value += buffer.ToByteSize();
                 observer.OnNext(DataReceptionEvent.FromClient(this, TranslateReception(buffer)));
 
                 while (buffer.Length > 0) {
@@ -116,24 +116,24 @@ public sealed class MobProxyClient : IClient
                     IncompleteMessageException.Throw(this);
             } while (!readResult.IsCompleted);
 
-            this.connectionStatusObservable.CurrentValue = IConnectionStatus.Disconnected;
+            this.connectionStatusObservable.Value = IConnectionStatus.Disconnected;
             this.transmissionObserver.OnCompleted();
             observer.OnCompleted();
         }
         // Error resulting from bad client input. Report and terminate.
         catch (ClientException exception) {
 
-            this.connectionStatusObservable.CurrentValue = IConnectionStatus.Exception;
+            this.connectionStatusObservable.Value = IConnectionStatus.Exception;
             observer.OnError(exception);
         }
         // Force close from client end.
         catch (IOException exception) {
 
-            this.connectionStatusObservable.CurrentValue = IConnectionStatus.Exception;
+            this.connectionStatusObservable.Value = IConnectionStatus.Exception;
             observer.OnError(exception);
         }
         catch (Exception exception) {
-            this.connectionStatusObservable.CurrentValue = IConnectionStatus.Exception;
+            this.connectionStatusObservable.Value = IConnectionStatus.Exception;
             observer.OnError(exception);
         }
         finally {
@@ -192,7 +192,7 @@ public sealed class MobProxyClient : IClient
             await networkStream.WriteAsync(memory, this.cancellationSource.Token);
 
         var bytesTransmitted = data.ToByteSize();
-        this.totalBytesTransmittedObservable.CurrentValue += bytesTransmitted;
+        this.totalBytesTransmittedObservable.Value += bytesTransmitted;
 
         Transmission transmission = new(){
             Data = data.ToArray(),

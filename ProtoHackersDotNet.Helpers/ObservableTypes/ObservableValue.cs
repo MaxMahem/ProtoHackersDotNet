@@ -4,21 +4,17 @@ using System.Reactive.Subjects;
 namespace ProtoHackersDotNet.Helpers.ObservableTypes;
 
 /// <summary>Wraps a value in an observable that reports changes to its status.</summary>
-/// <remarks>Disposing </remarks>
 /// <typeparam name="T">The type of the value.</typeparam>
 /// <param name="initialValue">The value to initialize this object with.</param>
-public sealed class ObservableValue<T>(T initialValue) : IDisposable
+public sealed class ObservableValue<T>(T initialValue) : IDisposable, IObservableValue<T>
 {
     readonly BehaviorSubject<T> valueObserver = new(initialValue);
 
-    /// <summary>Gets or sets the latest value. Setting this value will alert all observers.</summary>
-    public T CurrentValue
-    {
+    public T Value {
         get => this.valueObserver.Value;
         set => this.valueObserver.OnNext(value);
     }
 
-    /// <summary>Provides updates when the observed value changes.</summary>
     public IObservable<T> Changes => this.valueObserver.AsObservable();
 
     /// <summary>Notifies all observers of completion of the sequence.</summary>

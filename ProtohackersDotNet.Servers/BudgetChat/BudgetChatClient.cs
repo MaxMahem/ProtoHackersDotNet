@@ -25,7 +25,7 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
     protected override async Task OnConnect(CancellationToken token)
     {
         await Transmit(new AsciiTransmission(server.WelcomeMessage), token);
-        this.stateObserver.CurrentValue = BudgetChatClientState.Welcome;
+        this.stateObserver.Value = BudgetChatClientState.Welcome;
     }
 
     protected override async Task OnException(Exception exception, CancellationToken token)
@@ -39,9 +39,9 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
 
     protected override async Task OnDisconnect(CancellationToken token)
     {
-        if (this.stateObserver.CurrentValue == BudgetChatClientState.Joined)
+        if (this.stateObserver.Value == BudgetChatClientState.Joined)
             await server.BroadcastPart(this, token);
-        this.stateObserver.CurrentValue = BudgetChatClientState.Parted;
+        this.stateObserver.Value = BudgetChatClientState.Parted;
     }
     #endregion
 
@@ -52,7 +52,7 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
         try {
             ascii asciiLine = TrimInput(line);
 
-            switch (this.stateObserver.CurrentValue) {
+            switch (this.stateObserver.Value) {
                 case BudgetChatClientState.Welcome:
                     var userName = AsciiName.From(asciiLine);
                     UserName = server.ValidateName(userName);
@@ -86,7 +86,7 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
     {
         await Transmit(new AsciiTransmission(server.GetPresentNotice(this)));
 
-        this.stateObserver.CurrentValue = BudgetChatClientState.Joined;
+        this.stateObserver.Value = BudgetChatClientState.Joined;
         this.joinedCompleteSource.SetResult();
         await server.BroadcastJoin(this, token);
     }

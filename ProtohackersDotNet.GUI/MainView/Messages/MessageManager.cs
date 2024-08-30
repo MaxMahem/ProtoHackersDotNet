@@ -103,6 +103,6 @@ public partial class MessageManager : ObservableObject
         this.eventSources.ExceptWith(sourcesToRemove);
         this.sourceFilter.RemoveKeys(sourcesToRemove.SelectMany(source => source.SourceNames));
 
-        MessageSearch.CurrentValue = null;
+        MessageSearch.Value = null;
     }
 }

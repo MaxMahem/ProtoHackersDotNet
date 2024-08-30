@@ -13,28 +13,28 @@ public sealed class ServerManager : IStateSaveable, IDisposable
 
     /// <summary>Gets or sets the currently selected server.</summary>
     public ServerVM? SelectedServer {
-        get => this.observableServerVM?.CurrentValue;
-        set => this.observableServerVM.CurrentValue = observableServerVM.CurrentValue?.Server.CurrentlyListening ?? false
+        get => this.observableServerVM?.Value;
+        set => this.observableServerVM.Value = observableServerVM.Value?.Server.CurrentlyListening ?? false
             ? ThrowInvalidOperationException<ServerVM>("Server is currently running!")
             : value;
     }
-    public IObservable<ServerVM?> SelectedServerChanges => observableServerVM.Value;
+    public IObservable<ServerVM?> SelectedServerChanges => observableServerVM.Changes;
 
     /// <summary>Gets or sets the currently selected problem.</summary>
     public IProblem SelectedProblem {
-        get => this.observableProblem.CurrentValue;
-        set => this.observableProblem.CurrentValue = Problems.Contains(value) ? value
+        get => this.observableProblem.Value;
+        set => this.observableProblem.Value = Problems.Contains(value) ? value
                 : ThrowArgumentOutOfRangeException<IProblem>();
     }
 
     /// <summary>Provides updates when the value of <see cref="ServerVM.Server"/> changes.</summary>
-    public IObservable<IServer?> Server => this.observableServerVM.Value.Select(vm => vm?.Server);
+    public IObservable<IServer?> Server => this.observableServerVM.Changes.Select(vm => vm?.Server);
 
     /// <summary>Provides updates when the validity of the server changes.</summary>
-    public IObservable<bool> ServerValid => this.observableServerVM.Valid;
+    public IObservable<bool> ServerValid => this.observableServerVM.Validity;
 
     /// <summary>Gets the current selected server.</summary>
-    public IServer? CurrentServer => this.observableServerVM.CurrentValue?.Server;
+    public IServer? CurrentServer => this.observableServerVM.Value?.Server;
 
     /// <summary>Gets the known set of problems.</summary>
     public ReadOnlyObservableCollection<IProblem> Problems { get; }
@@ -88,8 +88,8 @@ public sealed class ServerManager : IStateSaveable, IDisposable
 
     /// <summary>Called when the app exits. Save the current state out to json.</summary>
     public IState GetState() => new ServerManagerState() { 
-        Server = this.observableServerVM.CurrentValue?.Name,
-        Problem = this.observableProblem.CurrentValue.Name,
+        Server = this.observableServerVM.Value?.Name,
+        Problem = this.observableProblem.Value.Name,
     };
 
     public void Dispose() => this.subscriptions.Dispose();

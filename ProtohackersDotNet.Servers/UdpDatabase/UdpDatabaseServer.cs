@@ -26,13 +26,13 @@ public class UdpDatabaseServer(UdpDatabaseServerOptions options) : IServer
     public IObservable<IServerStatus> ServerStatus => this.serverStatusObservable.Changes;
     public IObservable<bool> Listening => ServerStatus.Select(status => status is IServerStatus.Listening)
                                                       .DistinctUntilChanged();
-    public bool CurrentlyListening => this.serverStatusObservable.CurrentValue is IServerStatus.Listening;
+    public bool CurrentlyListening => this.serverStatusObservable.Value is IServerStatus.Listening;
 
     public virtual IObservable<string?> Status => Observable.Return<string?>(null);
 
     public IConnectableObservable<IEvent> Start(IPEndPoint endPoint, CancellationToken token = default)
     {
-        if (this.serverStatusObservable.CurrentValue is IServerStatus.Listening)
+        if (this.serverStatusObservable.Value is IServerStatus.Listening)
             ThrowInvalidOperationException("Server already started");
         this.cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(token);
 
@@ -50,7 +50,7 @@ public class UdpDatabaseServer(UdpDatabaseServerOptions options) : IServer
         UdpClient udpClient = new(LocalEndPoint);
 
         try {
-            this.serverStatusObservable.CurrentValue = IServerStatus.Listening;
+            this.serverStatusObservable.Value = IServerStatus.Listening;
 
             observer.OnNext(new ServerStartupEvent(this));
 
@@ -63,12 +63,12 @@ public class UdpDatabaseServer(UdpDatabaseServerOptions options) : IServer
         catch (OperationCanceledException exception) when (exception.CancellationToken.IsCancellationRequested) {
             observer.OnNext(new ServerShutdownEvent(this));
             observer.OnCompleted();
-            this.serverStatusObservable.CurrentValue = IServerStatus.Stopped;
+            this.serverStatusObservable.Value = IServerStatus.Stopped;
         } // unhandled exception.
         catch (Exception exception) {
             observer.OnNext(new ServerTerminatedEvent(this, exception));
             observer.OnError(exception);
-            this.serverStatusObservable.CurrentValue = IServerStatus.Terminated;
+            this.serverStatusObservable.Value = IServerStatus.Terminated;
         }
         finally { // server shutdown
             udpClient.Close();
@@ -127,7 +127,7 @@ public class UdpDatabaseServer(UdpDatabaseServerOptions options) : IServer
 
     public async Task<IDisposable> Stop()
     {
-        if (this.serverStatusObservable.CurrentValue is not IServerStatus.Listening)
+        if (this.serverStatusObservable.Value is not IServerStatus.Listening)
             ThrowInvalidOperationException("Server not started");
 
         Debug.Assert(this.cancellationSource is not null);

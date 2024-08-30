@@ -130,7 +130,7 @@
 											 Tapped="MessageLabel_Tapped">
 									<FlyoutBase.AttachedFlyout>
 										<Flyout Placement="BottomEdgeAlignedRight">
-											<TextBox Text="{Binding MessageSearch.CurrentValue}" Watermark="Search Term" />
+											<TextBox Text="{Binding MessageSearch.Value}" Watermark="Search Term" />
 										</Flyout>
 									</FlyoutBase.AttachedFlyout>
 								</Label>

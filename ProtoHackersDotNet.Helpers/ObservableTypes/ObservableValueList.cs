@@ -16,12 +16,12 @@ public class ObservableValueList<T> : IEnumerable<T>
     public void Add(T item)
     {
         this.values.Add(item);
-        this.countObservable.CurrentValue++;
+        this.countObservable.Value++;
     }
     public void Clear()
     {
         this.values.Clear();
-        this.countObservable.CurrentValue = 0;
+        this.countObservable.Value = 0;
     }
 
     public IEnumerator<T> GetEnumerator() => this.values.GetEnumerator();

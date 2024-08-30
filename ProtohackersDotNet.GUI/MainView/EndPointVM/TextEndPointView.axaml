@@ -13,7 +13,7 @@
 		<TextBox Name="REMOTE_IP"
 						 Grid.Column="1" Grid.Row="0"
 						 HorizontalAlignment="Stretch" Classes="mono"
-						 Classes.invalid="{Binding !#TEXT_ENDPOINT.EndPoint.IPValid^}"
+						 Classes.invalid="{Binding !#TEXT_ENDPOINT.EndPoint.IP.Validity^}"
 						 Text="{Binding #TEXT_ENDPOINT.EndPoint.IPText}"/>
 		<Label Target="{Binding #REMOTE_PORT}"
 					 Grid.Column="0" Grid.Row="1"
@@ -21,7 +21,7 @@
 		<NumericUpDown Grid.Column="1" Grid.Row="1" Name="REMOTE_PORT"
 									 Minimum="0" Maximum="65535" FormatString="0"
 									 ShowButtonSpinner="False" Classes="mono"
-									 Classes.invalid="{Binding !#TEXT_ENDPOINT.EndPoint.PortValid^}"
-									 Value="{Binding #TEXT_ENDPOINT.EndPoint.Port}"/>
+									 Classes.invalid="{Binding !#TEXT_ENDPOINT.EndPoint.Port.Validity^}"
+									 Value="{Binding #TEXT_ENDPOINT.EndPoint.Port.Value}"/>
 	</Grid>
 </UserControl>

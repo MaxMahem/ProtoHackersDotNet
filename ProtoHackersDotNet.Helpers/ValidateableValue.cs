@@ -7,33 +7,43 @@ namespace ProtoHackersDotNet.Helpers.ObservableTypes;
 /// <typeparam name="T">The type of the property encapsulated.</typeparam>
 /// <param name="validator">A method to use to check of the value is valid.</param>
 /// <param name="initialValue">The initial value to start with.</param>
-public class ValidateableValue<T>(Func<T?, bool> validator, T? initialValue = default)
+public sealed class ValidateableValue<T>(Func<T?, bool> validator, T? initialValue = default) : IObservableValue<T?>, IValidateableValue
 {
     T? value = initialValue;
     readonly BehaviorSubject<bool> validityObserver = new(validator(initialValue));
     readonly BehaviorSubject<T?> valueObserver = new(initialValue);
 
-    public T? CurrentValue
-    {
+    public T? Value {
         get => value;
-        set
-        {
-            if (EqualityComparer<T>.Default.Equals(this.value, value)) return;
+        set {
+            if (EqualityComparer<T>.Default.Equals(this.value, value))
+                return;
             this.value = value;
             this.valueObserver.OnNext(value);
 
             bool valid = validator(value);
-            if (valid != validityObserver.Value) validityObserver.OnNext(valid);
+            if (valid != validityObserver.Value)
+                validityObserver.OnNext(valid);
         }
     }
 
-    public IObservable<T?> Value => this.valueObserver.AsObservable();
+    public IObservable<T?> Changes => this.valueObserver.AsObservable();
 
-    /// <summary>Reports if <see cref="CurrentValue"/> is valid or not.</summary>
-    public IObservable<bool> Valid => validityObserver.AsObservable();
+    /// <summary>Gets the current validity of this value.</summary>
+    public bool Valid => this.validityObserver.Value;
 
-    public IObservable<T?> ValidValues => validityObserver.Where().Select(_ => CurrentValue);
+    /// <summary>Reports if <see cref="Value"/> is valid or not.</summary>
+    public IObservable<bool> Validity => this.validityObserver.AsObservable();
 
     public static ValidateableValue<T> NotNull(T? initialValue = default)
         => new(item => item is not null, initialValue);
+
+    public static ValidateableValue<T> InSet(IEnumerable<T> values, T? initialValue = default)
+        => new(value => value is null || values.Contains(value), initialValue);
+
+    public void Dispose()
+    {
+        this.validityObserver.Dispose();
+        this.valueObserver.Dispose();
+    }
 }

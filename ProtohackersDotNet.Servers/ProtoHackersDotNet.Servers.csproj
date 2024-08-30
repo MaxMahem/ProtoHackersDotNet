@@ -26,13 +26,13 @@
 
   <ItemGroup>
     <PackageReference Include="ByteSize" Version="2.1.2" />
-    <PackageReference Include="CommunityToolkit.Diagnostics" Version="8.2.2" />
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+    <PackageReference Include="CommunityToolkit.Diagnostics" Version="8.3.0" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.0" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" />
     <PackageReference Include="System.IO.Hashing" Version="8.0.0" />
     <PackageReference Include="System.IO.Pipelines" Version="8.0.0" />
     <PackageReference Include="System.Reactive" Version="6.0.1" />
-    <PackageReference Include="Vogen" Version="4.0.8" />
+    <PackageReference Include="Vogen" Version="4.0.19" />
   </ItemGroup>
 
   <ItemGroup>

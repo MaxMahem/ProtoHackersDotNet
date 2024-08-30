@@ -30,10 +30,10 @@ public class GradingService(GraderClient client)
     /// <returns>A task that represents completion of the tests.</returns>
     async Task ObserveTest(IServer server, IPEndPoint remoteEndPoint, IObserver<GradingEvent> observer, CancellationToken token)
     {
-        Debug.Assert(!this.observableIsGrading.CurrentValue);
+        Debug.Assert(!this.observableIsGrading.Value);
 
         try {
-            this.observableIsGrading.CurrentValue = true;
+            this.observableIsGrading.Value = true;
             observer.OnNext(new GradingRequestEvent(server, client.BaseAddress));
 
             GradingRequestResponse requestApiResponse = await client.RequestTesting(server, remoteEndPoint, token);
@@ -55,7 +55,7 @@ public class GradingService(GraderClient client)
             observer.OnError(GradingException.FromException(server, client.LastAccessedUrl, exception));
         }
         finally {
-            this.observableIsGrading.CurrentValue = false;
+            this.observableIsGrading.Value = false;
         }
     }
 

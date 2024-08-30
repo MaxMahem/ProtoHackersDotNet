@@ -49,7 +49,7 @@ public abstract class TcpClientBase : IClient, IDisposable
 
     readonly ObservableValue<IConnectionStatus> connectionStatusObservable = new(IConnectionStatus.Connected);
     public IObservable<IConnectionStatus> ConnectionStatus => this.connectionStatusObservable.Changes;
-    public IConnectionStatus LatestConnectionStatus => this.connectionStatusObservable.CurrentValue;
+    public IConnectionStatus LatestConnectionStatus => this.connectionStatusObservable.Value;
 
     public virtual IObservable<string?> Status => Observable.Return<string?>(null);
 
@@ -79,7 +79,7 @@ public abstract class TcpClientBase : IClient, IDisposable
                 
                 var buffer = readResult.Buffer;
 
-                this.totalBytesReceivedObservable.CurrentValue += buffer.ToByteSize();
+                this.totalBytesReceivedObservable.Value += buffer.ToByteSize();
                 observer.OnNext(DataReceptionEvent.FromClient(this, TranslateReception(buffer)));
 
                 while (buffer.Length > 0) {
@@ -95,7 +95,7 @@ public abstract class TcpClientBase : IClient, IDisposable
                 if (readResult.IsCompleted && !readResult.Buffer.IsEmpty) IncompleteMessageException.Throw(this);
             } while (!readResult.IsCompleted);
 
-            this.connectionStatusObservable.CurrentValue = IConnectionStatus.Disconnected;
+            this.connectionStatusObservable.Value = IConnectionStatus.Disconnected;
             await OnDisconnect(token);
             this.transmissionObserver.OnCompleted();
             observer.OnCompleted();
@@ -104,7 +104,7 @@ public abstract class TcpClientBase : IClient, IDisposable
         catch (ClientException exception) {
             await OnException(exception, token);
 
-            this.connectionStatusObservable.CurrentValue = IConnectionStatus.Exception;
+            this.connectionStatusObservable.Value = IConnectionStatus.Exception;
             await OnDisconnect(token);
             observer.OnError(exception);
         }
@@ -112,12 +112,12 @@ public abstract class TcpClientBase : IClient, IDisposable
         catch (IOException exception) {
             await OnException(exception, token);
 
-            this.connectionStatusObservable.CurrentValue = IConnectionStatus.Exception;
+            this.connectionStatusObservable.Value = IConnectionStatus.Exception;
             await OnDisconnect(token);
             observer.OnError(exception);
         }
         catch (Exception exception) {
-            this.connectionStatusObservable.CurrentValue = IConnectionStatus.Exception;
+            this.connectionStatusObservable.Value = IConnectionStatus.Exception;
             await OnDisconnect(token);
             observer.OnError(exception);
         }
@@ -175,7 +175,7 @@ public abstract class TcpClientBase : IClient, IDisposable
         await this.networkStream.WriteAsync(transmission.Data, token);
 
         var bytesTransmitted = transmission.Data.ToByteSize();
-        this.totalBytesTransmittedObservable.CurrentValue += bytesTransmitted;
+        this.totalBytesTransmittedObservable.Value += bytesTransmitted;
 
         this.transmissionObserver.OnNext(DataTransmissionEvent.FromClient(this, transmission));
     }
@@ -192,7 +192,7 @@ public abstract class TcpClientBase : IClient, IDisposable
             await this.networkStream.WriteAsync(memory, token);
 
         var bytesTransmitted = data.ToByteSize();
-        this.totalBytesTransmittedObservable.CurrentValue += bytesTransmitted;
+        this.totalBytesTransmittedObservable.Value += bytesTransmitted;
 
         Transmission transmission = new(){
             Data = data.ToArray(),

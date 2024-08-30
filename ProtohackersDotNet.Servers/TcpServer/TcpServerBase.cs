@@ -26,7 +26,7 @@ public abstract class TcpServerBase<TClient> : IServer<TClient>
     public IObservable<IServerStatus> ServerStatus => this.serverStatusObservable.Changes;
     public IObservable<bool> Listening => ServerStatus.Select(status => status is IServerStatus.Listening)
                                                       .DistinctUntilChanged();
-    public bool CurrentlyListening => this.serverStatusObservable.CurrentValue is IServerStatus.Listening;
+    public bool CurrentlyListening => this.serverStatusObservable.Value is IServerStatus.Listening;
 
     public virtual IObservable<string?> Status => Observable.Return<string?>(null);
 
@@ -50,7 +50,7 @@ public abstract class TcpServerBase<TClient> : IServer<TClient>
 
     public IConnectableObservable<IEvent> Start(IPEndPoint endPoint, CancellationToken token = default)
     {
-        if (this.serverStatusObservable.CurrentValue is IServerStatus.Listening) 
+        if (this.serverStatusObservable.Value is IServerStatus.Listening) 
             ThrowInvalidOperationException("Server already started");
         this.cancellationSource.Dispose();
         this.cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -71,7 +71,7 @@ public abstract class TcpServerBase<TClient> : IServer<TClient>
 
         try {
             listener.Start();
-            this.serverStatusObservable.CurrentValue = IServerStatus.Listening;
+            this.serverStatusObservable.Value = IServerStatus.Listening;
             await OnStartup();
             observer.OnNext(new ServerStartupEvent(this));
 
@@ -92,12 +92,12 @@ public abstract class TcpServerBase<TClient> : IServer<TClient>
             observer.OnNext(new ServerShutdownEvent(this));
             observer.OnCompleted();
             ServerEventObservable.OnCompleted(); // to complete the merged observable must complete both observables
-            this.serverStatusObservable.CurrentValue = IServerStatus.Stopped;
+            this.serverStatusObservable.Value = IServerStatus.Stopped;
         } // unhandled exception.
         catch (Exception exception) {
             observer.OnNext(new ServerTerminatedEvent(this, exception));
             observer.OnError(exception);
-            this.serverStatusObservable.CurrentValue = IServerStatus.Terminated;
+            this.serverStatusObservable.Value = IServerStatus.Terminated;
         }
         finally { // server shutdown
             DisposeClients();
@@ -127,7 +127,7 @@ public abstract class TcpServerBase<TClient> : IServer<TClient>
 
     public async Task<IDisposable> Stop()
     {
-        if (this.serverStatusObservable.CurrentValue is not IServerStatus.Listening)
+        if (this.serverStatusObservable.Value is not IServerStatus.Listening)
             ThrowInvalidOperationException("Server not started");
 
         Debug.Assert(this.cancellationSource is not null);
