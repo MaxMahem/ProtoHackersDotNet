@@ -67,7 +67,7 @@ public class App : Application
                 .EndChain();
 
         // http options.
-        services.AddHttpClient<GraderClient>(GraderClient.Configure);
+        services.AddHttpClient<GraderClient>(GraderClient.Configure).EndChain();
 
                 // servers
         services.AddSingleton(Problem.Instances.All)
@@ -84,11 +84,11 @@ public class App : Application
                 .AddSingleton<MainViewModel>()
                 .AddSingleton<ClientManager>()
                 .AddSingleton<ClientVMFactory>()
-                .AddSingleton<ServerManager>().AddStateSaveableResolver<ServerManager>()
+                .AddSingleton<ServerManager>().AddResolver<ServerManager, IStateSaveable>()
                 .AddSingleton<MessageManager>()
-                .AddSingleton<StartServerCommand>().AddStateSaveableResolver<StartServerCommand>()
+                .AddSingleton<StartServerCommand>().AddResolver<StartServerCommand, IStateSaveable>()
                 .AddSingleton<ClearLogCommand>()
-                .AddSingleton<TestServerCommand>().AddStateSaveableResolver<TestServerCommand>()
+                .AddSingleton<TestServerCommand>().AddResolver<TestServerCommand, IStateSaveable>()
                 .EndChain();
         return services;
     }
@@ -102,10 +102,14 @@ public static class ServiceCollectionHelper
                    .Services
                    .AddSingleton(provider => provider.GetRequiredService<IOptions<T>>().Value);
 
-    public static IServiceCollection AddStateSaveableResolver<T>(this IServiceCollection services)
-        where T : class, IStateSaveable
-        => services.AddSingleton<IStateSaveable>(provider => provider.GetRequiredService<T>());
+    public static IServiceCollection AddResolver<TType, TInterface>(this IServiceCollection services)
+        where TType : class, TInterface
+        where TInterface : class
+        => services.AddSingleton<TInterface>(provider => provider.GetRequiredService<TType>());
 
     [SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Used for discard")]
     public static void EndChain(this IServiceCollection services) { }
+
+    [SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Used for discard")]
+    public static void EndChain(this IHttpClientBuilder builder) { }
 }
