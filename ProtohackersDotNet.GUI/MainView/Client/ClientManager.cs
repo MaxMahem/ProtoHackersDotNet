@@ -36,7 +36,7 @@ public sealed class ClientManager : IDisposable
 
     public void ClearDisconnectedClients() 
         => this.clientStore.RemoveKeys(this.clientStore.Items.Where(client => !client.IsConnected));
-    public void Dispose() => this.clientStore.Dispose();
+    public void Dispose() => this.disposables.Dispose();
 }
 
 public sealed class ClientVMFactory(ClientVMFactoryOptions options) {

@@ -1,14 +1,13 @@
 ﻿using ProtoHackersDotNet.GUI.Serialization;
 using ProtoHackersDotNet.Servers;
 using ReactiveUI;
-using System.ComponentModel;
 using System.Reactive.Disposables;
 
 namespace ProtoHackersDotNet.GUI.MainView.Server;
 
-public sealed class ServerManager : IStateSaveable
+public sealed class ServerManager : IStateSaveable, IDisposable
 {
-    readonly ObservableValue<Problem> observableProblem;
+    readonly ObservableValue<IProblem> observableProblem;
 
     readonly ValidateableValue<ServerVM?> observableServerVM;
 
@@ -22,10 +21,10 @@ public sealed class ServerManager : IStateSaveable
     public IObservable<ServerVM?> SelectedServerChanges => observableServerVM.Value;
 
     /// <summary>Gets or sets the currently selected problem.</summary>
-    public Problem SelectedProblem {
+    public IProblem SelectedProblem {
         get => this.observableProblem.CurrentValue;
         set => this.observableProblem.CurrentValue = Problems.Contains(value) ? value
-                : ThrowArgumentOutOfRangeException<Problem>();
+                : ThrowArgumentOutOfRangeException<IProblem>();
     }
 
     /// <summary>Provides updates when the value of <see cref="ServerVM.Server"/> changes.</summary>
@@ -38,7 +37,7 @@ public sealed class ServerManager : IStateSaveable
     public IServer? CurrentServer => this.observableServerVM.CurrentValue?.Server;
 
     /// <summary>Gets the known set of problems.</summary>
-    public ReadOnlyObservableCollection<Problem> Problems { get; }
+    public ReadOnlyObservableCollection<IProblem> Problems { get; }
 
     [SuppressMessage("Style", "IDE0044:Add readonly modifier", Justification = "Bind target")]
     ReadOnlyObservableCollection<ServerVM> servers;
@@ -51,18 +50,18 @@ public sealed class ServerManager : IStateSaveable
 
     readonly CompositeDisposable subscriptions;
 
-    public ServerManager(IEnumerable<Problem> problems, IEnumerable<IServer> servers, ServerManagerState options)
+    public ServerManager(IEnumerable<IProblem> problems, IEnumerable<IServer> servers, ServerManagerState options)
     {
         var initialProblem = problems.FirstOrDefault(problem => problem.Name == options.Problem,
             defaultValue: problems.First());
         this.observableProblem = new(initialProblem);
 
-        Problems = new ObservableCollection<Problem>(problems).AsReadOnlyObservableCollection();
+        Problems = new ObservableCollection<IProblem>(problems).AsReadOnlyObservableCollection();
 
         // build the filterable Server collection
         this.serverCache.AddOrUpdate(servers.Select(ServerVM.Create));
-        var filteredServersChanges = this.serverCache.Connect().Filter(this.observableProblem.Value.Select(BuiltFilter));
-        static Func<ServerVM, bool> BuiltFilter(Problem? problem) => serverVM
+        var filteredServersChanges = this.serverCache.Connect().Filter(this.observableProblem.Changes.Select(BuiltFilter));
+        static Func<ServerVM, bool> BuiltFilter(IProblem? problem) => serverVM
             => problem is not null && serverVM.Server.Solution == problem;
         var serverUpdatesSub = filteredServersChanges.ObserveOn(RxApp.MainThreadScheduler).Bind(out this.servers).Subscribe();
 
@@ -84,7 +83,7 @@ public sealed class ServerManager : IStateSaveable
 
     public async Task StopServer()
     {
-        if  (CurrentServer is not null) await CurrentServer.Stop();
+        if  (CurrentServer is not null) (await CurrentServer.Stop()).DiscardUnsubscribe();
     }
 
     /// <summary>Called when the app exits. Save the current state out to json.</summary>
@@ -93,5 +92,7 @@ public sealed class ServerManager : IStateSaveable
         Problem = this.observableProblem.CurrentValue.Name,
     };
 
-    public static readonly ServerManager Mockup = new(Problem.Problems, [MockupServer.Default], new());
+    public void Dispose() => this.subscriptions.Dispose();
+
+    public static readonly ServerManager Mockup = new(Problem.Instances.All, [MockupServer.Default], new());
 }

@@ -11,7 +11,7 @@ public class ObservableValueList<T> : IEnumerable<T>
     readonly ObservableValue<int> countObservable = new(0);
 
     public int Count => this.values.Count;
-    public IObservable<int> CurrentCount => this.countObservable.Value;
+    public IObservable<int> CurrentCount => this.countObservable.Changes;
 
     public void Add(T item)
     {

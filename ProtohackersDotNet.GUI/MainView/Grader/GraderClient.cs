@@ -1,5 +1,6 @@
 ﻿using System.Net.Http;
 using System.Net.Http.Json;
+using Microsoft.Extensions.DependencyInjection;
 using ProtoHackersDotNet.GUI.MainView.Grader.Messages;
 
 namespace ProtoHackersDotNet.GUI.MainView.Grader;
@@ -44,12 +45,18 @@ public class GraderClient(HttpClient client, GraderClientOptions options)
             Port = (ushort) endPoint.Port,
         };
 
-        var requestHttpResponse = await client.PostAsJsonAsync(submitTestUrl, apiTestRequest,
+        HttpResponseMessage requestResponse = await client.PostAsJsonAsync(submitTestUrl, apiTestRequest,
                 GradingMetadata.Default.GradingRequest, token);
-        var requestApiResponse = await requestHttpResponse.EnsureSuccessStatusCode().Content.ReadFromJsonAsync(
+        GradingRequestResponse? requestApiResponse = await requestResponse.EnsureSuccessStatusCode().Content.ReadFromJsonAsync(
                 GradingMetadata.Default.GradingRequestResponse, token);
 
         return requestApiResponse?.Status is ResponseStatus.Ok ? requestApiResponse : ThrowResponseError<GradingRequestResponse>();
+    }
+
+    public static void Configure(IServiceProvider provider, HttpClient client)
+    {
+        client.DefaultRequestHeaders.UserAgent.Add(App.UserAgent);
+        client.BaseAddress = provider.GetRequiredService<GraderClientOptions>().BaseAddress;
     }
 
     [DoesNotReturn]

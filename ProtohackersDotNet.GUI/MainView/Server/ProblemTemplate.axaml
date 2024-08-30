@@ -6,10 +6,10 @@
 										xmlns:ctxt="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"
 										xmlns:p="using:ProtoHackersDotNet.Servers">
 	<Design.PreviewWith>
-		<ContentControl Content="{Binding Source={x:Static p:Problem.Echo}}" 
-										x:DataType="p:Problem"/>
+		<ContentControl Content="{Binding Source={x:Static p:Problem.Instance.Echo}}" 
+										x:DataType="p:IProblem"/>
 	</Design.PreviewWith>
-	<DataTemplate x:Key="ProblemTemplate" DataType="p:Problem">
+	<DataTemplate x:Key="ProblemTemplate" DataType="p:IProblem">
 		<md:MarkdownScrollViewer Name="ProblemDescription"
 					Markdown="{Binding Description}">
 			<md:MarkdownScrollViewer.Styles>

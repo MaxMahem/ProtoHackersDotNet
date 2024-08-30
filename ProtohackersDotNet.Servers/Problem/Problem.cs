@@ -1,50 +1,56 @@
 ﻿// use root namespace to avoid name conflict
 namespace ProtoHackersDotNet.Servers;
 
-public class Problem : IProblem<Problem>
+public abstract record class Problem(int Number, string Name) : IProblem
 {
-    const string PROBLEM_DIRECTORY = "Problem";
+    public abstract string Description { get; }
+    public abstract string ShortName { get; }
 
-    public int Number { get; }
-    public string Name { get; }
+    public string Title { get; } = $"{Number}: {Name}";
 
-    public string Description => descriptionCache.Value;
-    readonly Lazy<string> descriptionCache;
-
-    Problem(int number, string shortName, string externalName)
+    public static class Types
     {
-        Number = number;
-        Name = externalName;
-        this.descriptionCache = new(() => File.ReadAllText(Path.Combine(PROBLEM_DIRECTORY, shortName + ".md")));
+        public record class Unknown()      : Problem<Unknown>(-1, "Internal Testing Problem");
+        public record class Echo()         : Problem<Echo>(0, "Smoke Test");
+        public record class JsonPrime()    : Problem<JsonPrime>(1, "Prime Time");
+        public record class PriceTracker() : Problem<PriceTracker>(2, "Means to an End");
+        public record class BudgetChat()   : Problem<BudgetChat>(3, "Budget Chat");
+        public record class UdpDatabase()  : Problem<UdpDatabase>(4, "Unusual Database Program");
+        public record class MobProxy()     : Problem<MobProxy>(5, "Mob in the Middle");
     }
 
-    public static readonly Problem Unknown = new(-1, "Testing Problem", "-1: Internal Testing Problem");
+    public static class Instances
+    {
+        public readonly static Types.Unknown Unknown = new();
+        public readonly static Types.Echo         Echo         = new();
+        public readonly static Types.JsonPrime    JsonPrime    = new();
+        public readonly static Types.PriceTracker PriceTracker = new();
+        public readonly static Types.BudgetChat   BudgetChat   = new();
+        public readonly static Types.UdpDatabase  UdpDatabase  = new();
+        public readonly static Types.MobProxy     MobProxy     = new();
 
-    public readonly static Problem Echo         = new(0, "Echo",         "0: Smoke Test");
-    public readonly static Problem JsonPrime    = new(1, "JsonPrime",    "1: Prime Time");
-    public readonly static Problem PriceTracker = new(2, "PriceTracker", "2: Means to an End");
-    public readonly static Problem BudgetChat   = new(3, "BudgetChat",   "3: Budget Chat");
-    public readonly static Problem UdpDatabase  = new(4, "UdpDatabase",  "4: Unusual Database Program");
-    public readonly static Problem MobProxy     = new(5, "MobProxy",     "5: Mob in the Middle");
+        public readonly static IEnumerable<IProblem> All = [
+            Echo,
+            JsonPrime,
+            PriceTracker,
+            BudgetChat,
+            UdpDatabase,
+            MobProxy,
+        ];
+    }
 
-    public readonly static IEnumerable<Problem> Problems = [Echo, JsonPrime, PriceTracker, BudgetChat, UdpDatabase, MobProxy];
+    public int CompareTo(IProblem? other) => Number.CompareTo(other?.Number);
+    public bool Equals(IProblem? other) => Number.Equals(other?.Number);
+}
 
-    public int CompareTo(Problem? other) => Number.CompareTo(other?.Number);
-    public bool Equals(Problem? other) => Number.Equals(other?.Number);
+public record class Problem<TSelf>(int Number, string Name) : Problem(Number, Name)
+{
+    const string PROBLEM_DIRECTORY = "Problem";
+    static string MarkdownPath => Path.Combine(PROBLEM_DIRECTORY, typeof(TSelf).Name + ".md");
+    static string GetMarkdown() => File.ReadAllText(MarkdownPath);
 
-    public override bool Equals(object? obj) => obj switch {
-        null => false,
-        _ when ReferenceEquals(this, obj) => true,
-        Problem otherProblem => Equals(otherProblem),
-        _ => false,
-    };
+    public override string Description => descriptionCache.Value;
+    readonly Lazy<string> descriptionCache = new(GetMarkdown);
 
-    public override int GetHashCode() => Number;
-
-    public static bool operator ==(Problem left, Problem right) => left is null ? right is null : left.Equals(right);
-    public static bool operator !=(Problem left, Problem right) => !(left == right);
-    public static bool operator <(Problem left, Problem right) => left is null ? right is not null : left.CompareTo(right) < 0;
-    public static bool operator <=(Problem left, Problem right) => left is null || left.CompareTo(right) <= 0;
-    public static bool operator >(Problem left, Problem right) => left is not null && left.CompareTo(right) > 0;
-    public static bool operator >=(Problem left, Problem right) => left is null ? right is null : left.CompareTo(right) >= 0;
+    public override string ShortName { get; } = typeof(TSelf).Name;
 }

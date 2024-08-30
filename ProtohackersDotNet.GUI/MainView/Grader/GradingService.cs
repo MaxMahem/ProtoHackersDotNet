@@ -10,7 +10,7 @@ public class GradingService(GraderClient client)
     readonly ObservableValue<bool> observableIsGrading = new(false);
 
     /// <summary>Provides the current status of testing.</summary>
-    public IObservable<bool> Grading => this.observableIsGrading.Value.AsObservable();
+    public IObservable<bool> Grading => this.observableIsGrading.Changes.AsObservable();
 
     public ImmutableArray<string> EventSources { get; } = [client.BaseAddress.Host];
 

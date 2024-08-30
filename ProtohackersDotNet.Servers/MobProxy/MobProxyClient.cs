@@ -65,16 +65,16 @@ public sealed class MobProxyClient : IClient
     readonly Subject<IEvent> eventsObservable = new();
 
     readonly ObservableValue<IConnectionStatus> connectionStatusObservable = new(IConnectionStatus.Connected);
-    public IObservable<IConnectionStatus> ConnectionStatus => this.connectionStatusObservable.Value;
+    public IObservable<IConnectionStatus> ConnectionStatus => this.connectionStatusObservable.Changes;
     public IConnectionStatus LatestConnectionStatus => this.connectionStatusObservable.CurrentValue;
 
     public IObservable<string?> Status => Observable.Return<string?>(null);
 
     readonly ObservableValue<ByteSize> totalBytesTransmittedObservable = new(ByteSize.FromBytes(0));
-    public IObservable<ByteSize> TotalBytesTransmitted => this.totalBytesTransmittedObservable.Value;
+    public IObservable<ByteSize> TotalBytesTransmitted => this.totalBytesTransmittedObservable.Changes;
 
     readonly ObservableValue<ByteSize> totalBytesReceivedObservable = new(ByteSize.FromBytes(0));
-    public IObservable<ByteSize> TotalBytesReceived => this.totalBytesReceivedObservable.Value;
+    public IObservable<ByteSize> TotalBytesReceived => this.totalBytesReceivedObservable.Changes;
 
     #endregion
 

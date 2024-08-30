@@ -48,7 +48,7 @@ public partial class MessageManager : ObservableObject
         this.messageCache.Connect()
             .Filter(this.sourceFilter.Connect().AutoRefreshOnObservable(messageVM => messageVM.SelectedUpdates)
                                      .Select(BuildSourceFilter))
-            .Filter(MessageSearch.Value.Select(BuildMessageFilter))
+            .Filter(MessageSearch.Changes.Select(BuildMessageFilter))
             .ObserveOn(RxApp.MainThreadScheduler)
             .SortAndBind(out this.messages).Subscribe().DiscardUnsubscribe();
 

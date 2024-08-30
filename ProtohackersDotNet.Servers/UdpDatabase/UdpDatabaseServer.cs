@@ -18,12 +18,12 @@ public class UdpDatabaseServer(UdpDatabaseServerOptions options) : IServer
 
     public ServerName Name => ServerName.From(nameof(UdpDatabaseServer));
 
-    public Problem Solution => Problem.UdpDatabase;
+    public IProblem Solution => Problem.Instances.UdpDatabase;
 
     public IPEndPoint? LocalEndPoint { get; private set; }
 
     readonly ObservableValue<IServerStatus> serverStatusObservable = new(IServerStatus.Stopped);
-    public IObservable<IServerStatus> ServerStatus => this.serverStatusObservable.Value;
+    public IObservable<IServerStatus> ServerStatus => this.serverStatusObservable.Changes;
     public IObservable<bool> Listening => ServerStatus.Select(status => status is IServerStatus.Listening)
                                                       .DistinctUntilChanged();
     public bool CurrentlyListening => this.serverStatusObservable.CurrentValue is IServerStatus.Listening;

@@ -16,7 +16,7 @@ public sealed class BudgetChatClient(BudgetChatServer server, TcpClient client, 
     readonly TaskCompletionSource joinedCompleteSource = new();
     public Task Joined => this.joinedCompleteSource.Task;
 
-    public override IObservable<string?> Status => this.stateObserver.Value.Select(GetStatusFromState);
+    public override IObservable<string?> Status => this.stateObserver.Changes.Select(GetStatusFromState);
 
     string GetStatusFromState(BudgetChatClientState state) => UserName is not null ? $"{state}: '{UserName}'" : state.ToString();
 

@@ -18,7 +18,7 @@ public sealed class ObservableStore<TKey, TValue>(Func<TValue, TKey> keySelector
 
     public int Count => store.Count;
 
-    public IObservable<int> CurrentCount => countObservable.Value;
+    public IObservable<int> CurrentCount => countObservable.Changes;
 
     public void Add(TValue value)
     {

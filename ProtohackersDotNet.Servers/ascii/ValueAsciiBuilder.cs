@@ -2,8 +2,14 @@
 
 public ref struct ValueAsciiBuilder
 {
+    /// <summary>Backing array rented from <see cref="ArrayPool{T}"/>. Null if unused (using stackalloc data).</summary>
     byte[]? rentedPoolArray;
+    
+    /// <summary>Working buffer data. Data extends from [0..position], but buffer may be larger.</summary>
+    /// <remarks>Point to <see cref="rentedPoolArray"/> or a span passed from outside.</remarks>
     Span<byte> asciiChars = [];
+
+    /// <summary>Last position of a data character in the buffer.</summary>
     int position = 0;
 
     public ValueAsciiBuilder(Span<byte> initialBuffer)

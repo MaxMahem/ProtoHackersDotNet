@@ -3,7 +3,7 @@
 public abstract class ServerEvent(IServer server) : IEvent
 {
     public ServerName ServerName { get; } = server.Name;
-    public Problem Problem { get; } = server.Solution;
+    public IProblem Problem { get; } = server.Solution;
     public string Source { get; } = server.Name.ToString();
 
     public abstract string Type { get; }

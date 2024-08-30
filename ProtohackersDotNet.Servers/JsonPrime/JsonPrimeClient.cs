@@ -10,8 +10,7 @@ public sealed class JsonPrimeClient(TcpClient client, CancellationToken token) :
     protected override async Task ProcessLine(ReadOnlySequence<byte> line, CancellationToken token)
     {
         try {
-            var response = ProcessLineQuery(line).Number.IsPrime() ? IsPrime
-                                                                   : NotPrime;
+            var response = ProcessLineQuery(line).Number.IsPrime() ? IsPrime : NotPrime;
             await Transmit(response, token);
         }
         catch (Exception exception) {
@@ -19,10 +18,10 @@ public sealed class JsonPrimeClient(TcpClient client, CancellationToken token) :
         }
     }
 
-protected override string TranslateReception(ReadOnlySequence<byte> buffer)
+    protected override string TranslateReception(ReadOnlySequence<byte> buffer)
         => Encoding.UTF8.GetString(buffer);
 
-    protected override async Task OnException(Exception exception, CancellationToken token)
+    protected override async Task OnException(Exception exception, CancellationToken token) 
         => await Transmit(Malformed, token);
 
     static PrimeQuery ProcessLineQuery(ReadOnlySequence<byte> line)

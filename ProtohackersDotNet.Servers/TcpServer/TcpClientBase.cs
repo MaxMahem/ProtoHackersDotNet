@@ -48,16 +48,16 @@ public abstract class TcpClientBase : IClient, IDisposable
     readonly Subject<IEvent> eventsObservable = new();
 
     readonly ObservableValue<IConnectionStatus> connectionStatusObservable = new(IConnectionStatus.Connected);
-    public IObservable<IConnectionStatus> ConnectionStatus => this.connectionStatusObservable.Value;
+    public IObservable<IConnectionStatus> ConnectionStatus => this.connectionStatusObservable.Changes;
     public IConnectionStatus LatestConnectionStatus => this.connectionStatusObservable.CurrentValue;
 
     public virtual IObservable<string?> Status => Observable.Return<string?>(null);
 
     readonly ObservableValue<ByteSize> totalBytesTransmittedObservable = new(ByteSize.FromBytes(0));
-    public IObservable<ByteSize> TotalBytesTransmitted => this.totalBytesTransmittedObservable.Value;
+    public IObservable<ByteSize> TotalBytesTransmitted => this.totalBytesTransmittedObservable.Changes;
 
     readonly ObservableValue<ByteSize> totalBytesReceivedObservable = new(ByteSize.FromBytes(0));
-    public IObservable<ByteSize> TotalBytesReceived => this.totalBytesReceivedObservable.Value;
+    public IObservable<ByteSize> TotalBytesReceived => this.totalBytesReceivedObservable.Changes;
 
     #endregion
 
@@ -71,7 +71,7 @@ public abstract class TcpClientBase : IClient, IDisposable
         var reader = PipeReader.Create(networkStream);
 
         try {
-            await OnConnect(this.cancellationSource.Token);
+            await OnConnect(token);
             ReadResult readResult;
 
             do {// hold here for a client transmission
@@ -83,7 +83,7 @@ public abstract class TcpClientBase : IClient, IDisposable
                 observer.OnNext(DataReceptionEvent.FromClient(this, TranslateReception(buffer)));
 
                 while (buffer.Length > 0) {
-                    SequencePosition? lineEnd = FindLineEnd(buffer); 
+                    SequencePosition? lineEnd = FindLineEnd(buffer);
                     if (lineEnd is null) break;    // In the case of no line end, break, giving back the unsliced buffer.
 
                     (var line, buffer) = buffer.Split(lineEnd.Value); // split the line out from the remaining buffer.

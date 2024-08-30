@@ -21,6 +21,7 @@ public class TestServerCommand : IStateSaveable, IObservableCommand
             ip: IPAddress.TryParse(state.RemoteEndPoint?.IP, out var ip) ? ip : null,
             port: state.RemoteEndPoint?.Port
         );
+
         CanExecute = Observable.CombineLatest(
             this.serverManager.Server.SelectMany(server => server?.Listening ?? Observable.Return(false)),
             RemoteEndPoint.Valid,

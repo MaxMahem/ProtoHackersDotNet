@@ -20,10 +20,10 @@ public abstract class TcpServerBase<TClient> : IServer<TClient>
     #region Interface properties
 
     public abstract ServerName Name { get; }
-    public abstract Problem Solution { get; }
+    public abstract IProblem Solution { get; }
 
     readonly ObservableValue<IServerStatus> serverStatusObservable = new(IServerStatus.Stopped);
-    public IObservable<IServerStatus> ServerStatus => this.serverStatusObservable.Value;
+    public IObservable<IServerStatus> ServerStatus => this.serverStatusObservable.Changes;
     public IObservable<bool> Listening => ServerStatus.Select(status => status is IServerStatus.Listening)
                                                       .DistinctUntilChanged();
     public bool CurrentlyListening => this.serverStatusObservable.CurrentValue is IServerStatus.Listening;

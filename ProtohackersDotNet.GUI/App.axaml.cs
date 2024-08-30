@@ -25,7 +25,7 @@ public class App : Application
 {
     public const string AppName = "ProtoHackersDotNet";
     public static readonly Version Version = new(1, 1);
-    static readonly ProductInfoHeaderValue UserAgent = ProductInfoHeaderValue.Parse($"{AppName}/{Version}");
+    public static readonly ProductInfoHeaderValue UserAgent = ProductInfoHeaderValue.Parse($"{AppName}/{Version}");
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -54,9 +54,7 @@ public class App : Application
                                                .AddJsonFile(StateSaver.SETTINGS_PATH, optional: true).Build();
         services.AddSingleton<IConfiguration>(config).EndChain();
 
-        var protoHackerApiClientConfig = config.GetSection(nameof(GraderClientOptions));
-        services.AddOptions<GraderClientOptions>().Bind(protoHackerApiClientConfig)
-                .ValidateAndAddResolver()
+        services.RegisterOption<GraderClientOptions>()
                 .RegisterOption<ServerManagerState>()
                 .RegisterOption<StartServerCommandState>()
                 .RegisterOption<TestServerCommandState>()
@@ -69,15 +67,10 @@ public class App : Application
                 .EndChain();
 
         // http options.
-        services.AddHttpClient<GraderClient>(ConfigureClient);
-        void ConfigureClient(HttpClient client)
-        {
-            client.DefaultRequestHeaders.UserAgent.Add(UserAgent);
-            client.BaseAddress = protoHackerApiClientConfig.GetValue<Uri>("BaseAddress");
-        }
+        services.AddHttpClient<GraderClient>(GraderClient.Configure);
 
                 // servers
-        services.AddSingleton(Problem.Problems)
+        services.AddSingleton(Problem.Instances.All)
                 .AddSingleton<IServer, EchoServer>()
                 .AddSingleton<IServer, JsonPrimeServer>()
                 .AddSingleton<IServer, PriceTrackerServer>()
@@ -104,12 +97,10 @@ public class App : Application
 public static class ServiceCollectionHelper
 {
     public static IServiceCollection RegisterOption<T>(this IServiceCollection services) where T : class
-        => services.AddOptions<T>().BindConfiguration(typeof(T).Name).ValidateAndAddResolver();
-
-    public static IServiceCollection ValidateAndAddResolver<T>(this OptionsBuilder<T> services) where T : class
-        => services.ValidateDataAnnotations().ValidateOnStart()
+        => services.AddOptions<T>().BindConfiguration(typeof(T).Name)
+                   .ValidateDataAnnotations().ValidateOnStart()
                    .Services
-                   .AddSingleton(resolver => resolver.GetRequiredService<IOptions<T>>().Value);
+                   .AddSingleton(provider => provider.GetRequiredService<IOptions<T>>().Value);
 
     public static IServiceCollection AddStateSaveableResolver<T>(this IServiceCollection services)
         where T : class, IStateSaveable

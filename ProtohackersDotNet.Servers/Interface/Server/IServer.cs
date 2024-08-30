@@ -6,7 +6,7 @@ public interface IServer : IDisposable
     ServerName Name { get; }
 
     /// <summary>The problem this server solves.</summary>
-    Problem Solution { get; }
+    IProblem Solution { get; }
 
     /// <summary>The endpoint this server is listening to.</summary>
     IPEndPoint? LocalEndPoint { get; }

@@ -6,10 +6,10 @@ namespace ProtoHackersDotNet.GUI.MainView.Server;
 
 /// <summary>Dummy server for design mockup.</summary>
 class MockupServer : IServer
-{
+{    
     public ServerName Name { get; } = ServerName.From("DummyServer");
 
-    public Problem Solution => Problem.Unknown;
+    public IProblem Solution => Problem.Instances.Unknown;
 
     public IPEndPoint? LocalEndPoint { get; } = IPEndPoint.Parse("123.123.123.123:1234");
 
