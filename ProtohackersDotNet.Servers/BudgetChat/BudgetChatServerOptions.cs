@@ -4,8 +4,8 @@ namespace ProtoHackersDotNet.Servers.BudgetChat;
 
 public sealed class BudgetChatServerOptions
 {
-    const int MIN_MAX_NAME_LENGTH = 16;
-    const int MIN_MAX_MESSAGE_LENGTH = 1000;
+    const int MINIMUM_MAX_NAME_LENGTH = 16;
+    const int MINIMUM_MAX_MESSAGE_LENGTH = 1000;
 
     [RegularExpression(@"^[ -~]+$", ErrorMessage = "Only Printable Ascii permitted")]
     public required string WelcomeMessage { get; init; }
@@ -28,9 +28,9 @@ public sealed class BudgetChatServerOptions
     [RegularExpression(@"^\*[ -~]+{n}[ -~]*$", ErrorMessage = "Must begin with '*', contain the marker {n} for insertion, and consist of only Printable Ascii")]
     public required string PartNotice { get; init; }
 
-    [Range(MIN_MAX_NAME_LENGTH, int.MaxValue)]
+    [Range(MINIMUM_MAX_NAME_LENGTH, int.MaxValue)]
     public required int MaxNameLength { get; init; }
 
-    [Range(MIN_MAX_MESSAGE_LENGTH, int.MaxValue)]
+    [Range(MINIMUM_MAX_MESSAGE_LENGTH, int.MaxValue)]
     public required int MaxMessageLength { get; init; }
 }

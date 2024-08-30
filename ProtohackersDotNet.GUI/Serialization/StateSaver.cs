@@ -7,9 +7,8 @@ public class StateSaver(IEnumerable<IStateSaveable> saveables)
     public void Save()
     {
         var stateDictionary = saveables.Select(saveable => saveable.GetState()).ToDictionary(state => state.ObjectName);
-        using var writer = File.Create(SETTINGS_PATH);
-        JsonSerializer.Serialize(writer, stateDictionary, AppStateMetaData.Default.DictionaryStringIState);
-        writer.Flush();
+        using var saveFile = File.Create(SETTINGS_PATH);
+        JsonSerializer.Serialize(saveFile, stateDictionary, AppStateMetaData.Default.DictionaryStringIState);
     }
 
     /// <summary>Saves the current app state. Discarding any input.</summary>
