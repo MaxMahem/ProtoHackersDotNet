@@ -17,10 +17,10 @@
 						 VerticalAlignment="Center"/>
 			<ComboBox Name="ServerDropdown" HorizontalAlignment="Right"
 								Grid.IsSharedSizeScope="True" ItemTemplate="{StaticResource ServerTemplate}"
-								ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}"
-								IsEnabled="{Binding !Server^.Listening^}"
-								Classes.success="{Binding SelectedServerChanges^.TestSuccessful^}"
-								Classes.failure="{Binding SelectedServerChanges^.TestFailure^}" />
+								ItemsSource="{Binding Servers}" SelectedItem="{Binding ServerVM.Value}"
+								IsEnabled="{Binding !ServerVM.Changes^.Server.Listening^}"
+								Classes.success="{Binding ServerVM.Changes^.TestSuccessful^}"
+								Classes.failure="{Binding ServerVM.Changes^.TestFailure^}" />
 		</DockPanel>
 		<Border BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}" 
 						BorderThickness="1" CornerRadius="3">
@@ -29,18 +29,18 @@
 								Classes="carousel"
 								PointerWheelChanged="CarouselButton_PointerWheelChanged"
 								Click="CarouselButtonLeft_Click"
-								IsEnabled="{Binding !Server^.Listening^}">
+								IsEnabled="{Binding !ServerVM.Changes^.Server.Listening^}">
 					<icons:MaterialIcon Kind="ChevronLeft" />
 				</Button>
 				<Carousel Name="ProblemCarousel" Grid.ColumnSpan="3"
-									SelectedItem="{Binding SelectedProblem}"
+									SelectedItem="{Binding Problem.Value}"
 									ItemsSource="{Binding Problems}"
 									ItemTemplate="{StaticResource ProblemTemplate}" />
 				<Button Grid.Column="2" ZIndex="1"
 								Classes="carousel" HorizontalAlignment="Right"
 							  PointerWheelChanged="CarouselButton_PointerWheelChanged"
 								Click="CarouselButtonRight_Click"
-								IsEnabled="{Binding !Server^.Listening^}">
+								IsEnabled="{Binding !ServerVM.Changes^.Server.Listening^}">
 					<icons:MaterialIcon Kind="ChevronRight" />
 				</Button>
 			</Grid>

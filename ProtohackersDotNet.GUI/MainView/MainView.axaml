@@ -27,7 +27,7 @@
 				<TabControl Name="LOCAL_REMOTE">
 					<TabItem Header="Local">
 						<endpoint:SelectableEndPointView EndPoint="{Binding StartServerCommand.LocalEndPoint}"
-																						 IsEnabled="{Binding !ServerManager.Server^.Listening^}"/>
+																						 IsEnabled="{Binding !ServerManager.ServerVM.Changes^.Server.Listening^}"/>
 					</TabItem>
 					<TabItem Header="Remote">
 						<endpoint:TextEndPointView EndPoint="{Binding TestServerCommand.RemoteEndPoint}"
@@ -48,9 +48,9 @@
 							Command="{Binding TestServerCommand.Execute}"
 							IsEnabled="{Binding TestServerCommand.CanExecute^}"/>
 			<Button Command="{Binding ServerManager.StopServer}" 
-							IsEnabled="{Binding ServerManager.Server^.Listening^}"
+							IsEnabled="{Binding ServerManager.ServerVM.Changes^.Server.Listening^}"
 							Content="Stop"/>
-			<Button Command="{Binding StartServerCommand.Start}"
+			<Button Command="{Binding StartServerCommand.Execute}"
 							IsEnabled="{Binding StartServerCommand.CanExecute^}"
 							Content="Start"/>
 		</UniformGrid>
@@ -59,8 +59,8 @@
 			<TextBlock Classes="h2" VerticalAlignment="Center">
 				<TextBlock.Text>
 					<MultiBinding Converter="{x:Static mv:Converters.JoinConverter}">
-						<Binding Path="ServerManager.Server^.ServerStatus^" />
-						<Binding Path="ServerManager.Server^.Status^" />
+						<Binding Path="ServerManager.ServerVM.Changes^.Server.ServerStatus^" />
+						<Binding Path="ServerManager.ServerVM.Changes^.Server.Status^" />
 					</MultiBinding>
 				</TextBlock.Text>
 			</TextBlock>
@@ -150,7 +150,7 @@
 			<Button DockPanel.Dock="Right" Command="{Binding MessageManager.ClearMessages}">Clear Messages</Button>
 			<StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
 				<Label VerticalAlignment="Center" Target="{Binding #LogToggle}">Message Logging</Label>
-				<ToggleSwitch Name="LogToggle" IsChecked="{Binding MessageManager.LoggingEnabled}" IsEnabled="{Binding !ServerManager.Server^.Listening^}" />
+				<ToggleSwitch Name="LogToggle" IsChecked="{Binding MessageManager.LoggingEnabled}" IsEnabled="{Binding !ServerManager.ServerVM.Changes^.Server.Listening^}" />
 				<TextBlock Text="{Binding MessageManager.LogFileName}" Margin="5 0 0 0" VerticalAlignment="Center" />
 			</StackPanel>
 		</DockPanel>

@@ -23,7 +23,7 @@ public class TestServerCommand : IStateSaveable, IObservableCommand
         );
 
         CanExecute = Observable.CombineLatest(
-            this.serverManager.Server.SelectMany(server => server?.Listening ?? Observable.Return(false)),
+            this.serverManager.ServerVM.Changes.SelectMany(server => server?.Server.Listening ?? Observable.Return(false)),
             RemoteEndPoint.EndPoint.Validity,
             Grader.Grading,
             (listening, valid, grading) => listening && valid && !grading
@@ -35,11 +35,9 @@ public class TestServerCommand : IStateSaveable, IObservableCommand
 
     public IObservable<bool> CanExecute { get; }
 
-    public IObservable<bool> Executing => Grader.Grading;
-
     public void Execute()
     {
-        var selectedServerVM = this.serverManager.SelectedServer ?? ThrowArgumentNullException<ServerVM>();
+        var selectedServerVM = this.serverManager.ServerVM.Value ?? ThrowArgumentNullException<ServerVM>();
         var remoteEndPoint = RemoteEndPoint.EndPoint.Value ?? ThrowArgumentNullException<IPEndPoint>();
 
         var testEvents = Grader.GradeServer(selectedServerVM.Server, remoteEndPoint);

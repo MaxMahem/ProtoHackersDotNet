@@ -18,7 +18,7 @@ public sealed class MainViewModel
         TestServerCommand  = testServerCommand;
 
         // When the server changes, clear the logs.
-        serverManager.Server.Subscribe(onNext: _ => clearLogCommand.ClearClientsAndMessages()).DiscardUnsubscribe();
+        serverManager.ServerVM.Changes.Subscribe(onNext: _ => clearLogCommand.ClearClientsAndMessages()).DiscardUnsubscribe();
     }
 
     public ServerManager ServerManager { get; }

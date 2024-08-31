@@ -25,7 +25,7 @@ public partial class ServerSelector : UserControl
     {
         ServerManager serverManager = (ServerDropdown.DataContext as ServerManager) 
             ?? ThrowInvalidOperationException<ServerManager>($"Data context not {nameof(serverManager)}.");
-        selectedServerChangeBinding = ServerDropdown.Bind(ComboBox.SelectedItemProperty, serverManager.SelectedServerChanges);
+        selectedServerChangeBinding = ServerDropdown.Bind(ComboBox.SelectedItemProperty, serverManager.ServerVM.Changes);
         
         base.OnLoaded(e);
     }

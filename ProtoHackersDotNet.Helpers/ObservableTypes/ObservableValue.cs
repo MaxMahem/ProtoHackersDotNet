@@ -1,4 +1,6 @@
-﻿using System.Reactive.Linq;
+﻿using System.Diagnostics;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
 using System.Reactive.Subjects;
 
 namespace ProtoHackersDotNet.Helpers.ObservableTypes;
@@ -17,9 +19,13 @@ public sealed class ObservableValue<T>(T initialValue) : IDisposable, IObservabl
 
     public IObservable<T> Changes => this.valueObserver.AsObservable();
 
-    /// <summary>Notifies all observers of completion of the sequence.</summary>
-    /// <remarks>Note, after doing this the value can no longer be changed!</remarks>
+    /// <summary>Reports completion of the <see cref="ObservableValue{T}.Changes"/> stream.</summary>
+    /// <remarks>After callnig this <see cref="ObservableValue{T}.Value"/> can no longer be set.</remarks>
     public void Complete() => this.valueObserver.OnCompleted();
+
+    /// <summary>Reports an exception to the <see cref="ObservableValue{T}.Changes"/> stream.</summary>
+    /// <remarks>This may cause a throw, and after doing this <see cref="ObservableValue{T}.Value"/> can no longer be set.</remarks>
+    public void Error(Exception exception) => this.valueObserver.OnError(exception);
 
     /// <summary>Disposes of this value, unsubscribing all observers. 
     /// After calling this method this value can no longer be read!</summary>

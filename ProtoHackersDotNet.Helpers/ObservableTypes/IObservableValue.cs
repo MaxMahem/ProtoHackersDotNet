@@ -8,4 +8,7 @@ public interface IObservableValue<T> : IReadOnlyObservableValue<T>
     /// <summary>Gets or sets the latest value.</summary>
     /// <remarks>Setting this property will trigger a notification to subscribers of <see cref="Changes"/>.</remarks>
     new T Value { get; set; }
+
+    void Complete();
+    void Error(Exception exception);
 }

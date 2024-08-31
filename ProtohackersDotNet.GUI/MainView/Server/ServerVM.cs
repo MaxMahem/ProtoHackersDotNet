@@ -6,9 +6,6 @@ namespace ProtoHackersDotNet.GUI.MainView.Server;
 public class ServerVM(IServer server)
 {
     public IServer Server { get; } = server;
-    public string Name => Server.Name.Value;
-
-    public IObservable<bool> Listening => Server.Listening;
 
     readonly BehaviorSubject<Grade> observableTestResult = new(Grade.Untested);
     public IObservable<Grade> TestResults => this.observableTestResult.AsObservable();
@@ -23,9 +20,9 @@ public class ServerVM(IServer server)
     public void ObserveTest(IObservable<IEvent> testEvents) 
     {
         testEvents.Where(message => message.MessageType is not MessageType.Notice)
-                  .Select(message => message.Message).Subscribe(observableLastError).DiscardUnsubscribe();
+                  .Select(message => message.Message).Subscribe(this.observableLastError).DiscardUnsubscribe();
         testEvents.OfType<GradingResultEvent>().Select(GetGradingResult)
-                  .Subscribe(this.observableTestResult.OnNext).DiscardUnsubscribe();
+                  .Subscribe(this.observableTestResult).DiscardUnsubscribe();
     }
 
     public static Grade GetGradingResult(GradingResultEvent gradingResultEvent) => gradingResultEvent.MessageType switch {

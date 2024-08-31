@@ -16,7 +16,7 @@
 													IsVisible="{Binding HasResults^}"
 													ToolTip.Tip="{Binding LastError^}"/>
 			<TextBlock Grid.Column="1" HorizontalAlignment="Left"
-								 Text="{Binding Name}" />
+								 Text="{Binding Server.Name.Value}" />
 		</Grid>
 	</DataTemplate>
 </ResourceDictionary>

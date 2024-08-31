@@ -8,7 +8,7 @@ namespace ProtoHackersDotNet.GUI.MainView.EndPoint;
 public abstract class EndPointVM
 {
     public ValidateableValue<IPAddress?> IP { get; protected set; }
-    public ValidateableValue<ushort?> Port { get; protected set; }
+    public ValidateableValue<ushort?> Port { get; }
     public CompositValidatableValue<IPAddress?, ushort?, IPEndPoint?> EndPoint { get; protected set; }
 
     public EndPointVM(IPAddress? ip, ushort? port)
@@ -20,7 +20,6 @@ public abstract class EndPointVM
         static IPEndPoint? TryBuildEndPoint(IPAddress? ip, ushort? port)
             => ip is not null && port is not null ? new IPEndPoint(ip, port.Value) : null;
     }
-
 
     /// <summary>Serializes this endpoint in a format suitable for appsettings.json export.</summary>
     /// <returns>A serializable representation of this endpoint's values.</returns>

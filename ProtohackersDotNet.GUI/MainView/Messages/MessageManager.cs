@@ -14,7 +14,7 @@ public partial class MessageManager : ObservableObject
 
     readonly HashSet<IEventSource> eventSources = [];
 
-    readonly SourceCache<StringFilterEntry, string> sourceFilter 
+    readonly SourceCache<StringFilterEntry, string> sourceFilters 
         = new(entry => entry.Entry);
     public ListFilterManager SourceFilter { get; }
 
@@ -44,9 +44,9 @@ public partial class MessageManager : ObservableObject
     {
         this.options = options;
 
-        SourceFilter = new(this.sourceFilter);
+        SourceFilter = new(this.sourceFilters);
         this.messageCache.Connect()
-            .Filter(this.sourceFilter.Connect().AutoRefreshOnObservable(messageVM => messageVM.SelectedUpdates)
+            .Filter(this.sourceFilters.Connect().AutoRefreshOnObservable(messageVM => messageVM.SelectedUpdates)
                                      .Select(BuildSourceFilter))
             .Filter(MessageSearch.Changes.Select(BuildMessageFilter))
             .ObserveOn(RxApp.MainThreadScheduler)
@@ -55,7 +55,7 @@ public partial class MessageManager : ObservableObject
         static Func<MessageVM, bool> BuildMessageFilter(string? search) => messageVM 
             => string.IsNullOrEmpty(search) || messageVM.Message.Contains(search, StringComparison.CurrentCulture);
         Func<MessageVM, bool> BuildSourceFilter<T>(T _) => messageVM 
-            => this.sourceFilter.Lookup(messageVM.Source) is { HasValue: true } lookup 
+            => this.sourceFilters.Lookup(messageVM.Source) is { HasValue: true } lookup 
                 ? lookup.Value.Selected : true;
     }
 
@@ -64,7 +64,7 @@ public partial class MessageManager : ObservableObject
         bool added = this.eventSources.Add(streamSource);
         Debug.Assert(added);
 
-        this.sourceFilter.AddOrUpdate(streamSource.SourceNames.Select(name => new StringFilterEntry(name)));
+        this.sourceFilters.AddOrUpdate(streamSource.SourceNames.Select(name => new StringFilterEntry(name)));
         streamSource.EventStream.Timestamp().ObserveOn(TaskPoolScheduler.Default).Subscribe(
             onNext: streamEvent => PostMessage(MessageVM.FromEvent(streamEvent)), 
             onError: exception => PostException(exception, streamSource.MessageSource, streamSource.SourceNames.First())
@@ -89,7 +89,7 @@ public partial class MessageManager : ObservableObject
     void PostException(Exception exception, MessageSource messageSource, string sourceName)
     {
         this.messageCache.AddOrUpdate(MessageVM.FromException(exception, messageSource, sourceName));
-        this.sourceFilter.AddOrUpdate(new StringFilterEntry(sourceName));
+        this.sourceFilters.AddOrUpdate(new StringFilterEntry(sourceName));
     }
 
     /// <summary>Clears messages and removes source filters that can be removed.
@@ -101,7 +101,7 @@ public partial class MessageManager : ObservableObject
         // remove completed sources.
         var sourcesToRemove = this.eventSources.Where(source => source.Completed.IsCompleted);
         this.eventSources.ExceptWith(sourcesToRemove);
-        this.sourceFilter.RemoveKeys(sourcesToRemove.SelectMany(source => source.SourceNames));
+        this.sourceFilters.RemoveKeys(sourcesToRemove.SelectMany(source => source.SourceNames));
 
         MessageSearch.Value = null;
     }

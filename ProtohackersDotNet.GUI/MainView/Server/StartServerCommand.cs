@@ -6,6 +6,13 @@ using System.Net.NetworkInformation;
 
 namespace ProtoHackersDotNet.GUI.MainView.Server;
 
+public class ObservableCommand(Action execute, IObservable<bool> canExecute) : IObservableCommand
+{
+    public IObservable<bool> CanExecute => canExecute;
+
+    public void Execute() => execute.Invoke();
+}
+
 public class StartServerCommand : IObservableCommand, IStateSaveable
 {
     readonly ServerManager serverManager;
@@ -24,40 +31,35 @@ public class StartServerCommand : IObservableCommand, IStateSaveable
             ip: IPAddress.TryParse(state.LocalEndPoint?.IP, out var ip) ? ip : null,
             port: state.LocalEndPoint?.Port
         );
-        CanExecute = Observable.CombineLatest(Executing, LocalEndPoint.EndPoint.Validity, (executing, valid) => !executing && valid)
-                               .DistinctUntilChanged();
+
+        CanExecute = Observable.CombineLatest(
+            this.serverManager.ServerVM.Changes.SelectMany(server => server?.Server.Listening ?? Observable.Return(false)), 
+            LocalEndPoint.EndPoint.Validity, 
+            (executing, valid) => !executing && valid
+        ).DistinctUntilChanged();
     }
 
     public IObservable<bool> CanExecute { get; }
 
-    public IObservable<bool> Executing 
-        => this.serverManager.Server.SelectMany(server => server?.Listening ?? Observable.Return(false));
-
-    public void Execute() => Start();
-
-    public SelectableEndPoint LocalEndPoint { get; }
-
-    public void Start()
+    public void Execute()
     {
-        var server = this.serverManager.CurrentServer ?? ThrowArgumentNullException<IServer>();
+        var server = this.serverManager.ServerVM.Value?.Server ?? ThrowArgumentNullException<IServer>();
         var localEndPoint = LocalEndPoint.EndPoint.Value ?? ThrowArgumentNullException<IPEndPoint>();
-        Start(server, localEndPoint);
-    }
 
-    void Start(IServer server, IPEndPoint serverEndpoint)
-    {
-        var serverEvents = server.Start(serverEndpoint);
+        var serverEvents = server.Start(localEndPoint);
         serverEvents.OfType<ClientConnectionEvent>().Subscribe(SubscribeClient, Stub.IgnoreError).DiscardUnsubscribe();
-        messageManager.SubscribeToStream(EventSource.FromServer(server, serverEvents));
+        this.messageManager.SubscribeToStream(EventSource.FromServer(server, serverEvents));
         serverEvents.Connect().DiscardUnsubscribe();
 
         void SubscribeClient(ClientConnectionEvent clientEvent)
         {
-            clientManager.AddClient(clientEvent.Client);
-            messageManager.SubscribeToStream(EventSource.FromClient(clientEvent.Client, 
-                clientEvent.Client.Events));
+            this.clientManager.AddClient(clientEvent.Client);
+            var eventSource = EventSource.FromClient(clientEvent.Client, clientEvent.Client.Events);
+            this.messageManager.SubscribeToStream(eventSource);
         }
     }
+
+    public SelectableEndPoint LocalEndPoint { get; }
 
     static IEnumerable<IPAddress> SystemIPs
         => NetworkInterface.GetAllNetworkInterfaces().Where(netInterface => netInterface.OperationalStatus is OperationalStatus.Up)
