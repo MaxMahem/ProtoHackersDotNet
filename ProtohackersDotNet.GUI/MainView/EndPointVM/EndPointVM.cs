@@ -21,6 +21,10 @@ public abstract class EndPointVM
             => ip is not null && port is not null ? new IPEndPoint(ip, port.Value) : null;
     }
 
+    public IObservable<SerializableEndPoint> StateChanges => Observable.CombineLatest(IP.Changes, Port.Changes,
+        (ip, port) => new SerializableEndPoint() { IP = ip?.ToString(), Port = port })
+        .DistinctUntilChanged();
+
     /// <summary>Serializes this endpoint in a format suitable for appsettings.json export.</summary>
     /// <returns>A serializable representation of this endpoint's values.</returns>
     public SerializableEndPoint ToSerializable() => new()

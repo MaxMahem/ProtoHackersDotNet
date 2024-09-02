@@ -5,16 +5,18 @@ using ProtoHackersDotNet.GUI.Serialization;
 
 namespace ProtoHackersDotNet.GUI.MainView.Grader;
 
-public class TestServerCommand : IStateSaveable, IObservableCommand
+public class TestServerCommand : IStateProvider, IObservableCommand
 {
     readonly ServerManager serverManager;
     readonly MessageManager messageManager;
+    readonly TestServerCommandState state;
 
     public TestServerCommand(GradingService grader, MessageManager messageManager, ServerManager serverManager,
             TestServerCommandState state)
     {
         this.serverManager = serverManager;
         this.messageManager = messageManager;
+        this.state = state;
 
         Grader = grader;
         RemoteEndPoint = new(
@@ -45,5 +47,5 @@ public class TestServerCommand : IStateSaveable, IObservableCommand
         selectedServerVM.ObserveTest(testEvents);
     }
 
-    public IState GetState() => new TestServerCommandState() { RemoteEndPoint = RemoteEndPoint.ToSerializable() };
+    public IObservable<IState> StateChanges => RemoteEndPoint.StateChanges.Select(this.state.Update);
 }

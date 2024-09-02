@@ -13,18 +13,20 @@ public class ObservableCommand(Action execute, IObservable<bool> canExecute) : I
     public void Execute() => execute.Invoke();
 }
 
-public class StartServerCommand : IObservableCommand, IStateSaveable
+public class StartServerCommand : IObservableCommand, IStateProvider
 {
     readonly ServerManager serverManager;
     readonly ClientManager clientManager;
     readonly MessageManager messageManager;
+    readonly StartServerCommandState state;
 
     public StartServerCommand(ServerManager serverManager, ClientManager clientManager, MessageManager messageManager,
-                                StartServerCommandState state)
+                              StartServerCommandState state)
     {
         this.serverManager = serverManager;
         this.clientManager = clientManager;
         this.messageManager = messageManager;
+        this.state = state;
 
         LocalEndPoint = new(
             ips: SystemIPs,
@@ -67,5 +69,5 @@ public class StartServerCommand : IObservableCommand, IStateSaveable
                            .Select(address => address.Address)
                            .Prepend(IPAddress.Any);
 
-    public IState GetState() => new StartServerCommandState() { LocalEndPoint = LocalEndPoint.ToSerializable() };
+    public IObservable<IState> StateChanges => LocalEndPoint.StateChanges.Select(this.state.Update);
 }

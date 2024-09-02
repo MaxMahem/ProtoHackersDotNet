@@ -15,7 +15,6 @@ using ProtoHackersDotNet.GUI.MainView.Grader;
 using ProtoHackersDotNet.GUI.MainView.Server;
 using ProtoHackersDotNet.GUI.Serialization;
 using ProtoHackersDotNet.Servers.UdpDatabase;
-using Microsoft.Extensions.Options;
 using ProtoHackersDotNet.Servers.MobProxy;
 using ProtoHackersDotNet.Servers;
 
@@ -23,6 +22,8 @@ namespace ProtoHackersDotNet.GUI;
 
 public class App : Application
 {
+    StateSerializer? stateSerializer;
+
     public const string AppName = "ProtoHackersDotNet";
     public static readonly Version Version = new(1, 1);
     public static readonly ProductInfoHeaderValue UserAgent = ProductInfoHeaderValue.Parse($"{AppName}/{Version}");
@@ -33,13 +34,16 @@ public class App : Application
     {
         Name = AppName;
 
-        var serviceProvider = ConfigureServices(new ServiceCollection()).BuildServiceProvider();
+        var serviceCollection = new ServiceCollection();
+        var serviceProvider = ConfigureServices(serviceCollection).BuildServiceProvider();
+        this.stateSerializer = serviceProvider.GetRequiredService<StateSerializer>();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) {
-            desktop.MainWindow = serviceProvider.GetService<MainWindow>();
+            desktop.Exit += (s, e) => stateSerializer.Save();
+            desktop.MainWindow = serviceProvider.GetRequiredService<MainWindow>();
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform) {
-            var mainVM = serviceProvider.GetService<MainViewModel>();
+            var mainVM = serviceProvider.GetRequiredService<MainViewModel>();
             singleViewPlatform.MainView = new MainView.MainView { DataContext = mainVM };
         }
 
@@ -48,10 +52,10 @@ public class App : Application
 
     static IServiceCollection ConfigureServices(IServiceCollection services)
     {
-        // configuration options
+        // appsetting configuration options
         var config = new ConfigurationBuilder().SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                                                .AddJsonFile("appsettings.json", optional: false)
-                                               .AddJsonFile(StateSaver.SETTINGS_PATH, optional: true).Build();
+                                               .AddDependentJsonFile("StateSerializationOptions:SavePath").Build();
         services.AddSingleton<IConfiguration>(config).EndChain();
 
         services.RegisterOption<GraderClientOptions>()
@@ -63,7 +67,9 @@ public class App : Application
                 .RegisterOption<BudgetChatServerOptions>()
                 .RegisterOption<UdpDatabaseServerOptions>()
                 .RegisterOption<MobProxyServerOptions>()
-                .AddSingleton<StateSaver>()
+                .RegisterOption<StateSerializationOptions>()
+                .AddSingleton<AppState>()
+                .AddSingleton<StateSerializer>()
                 .EndChain();
 
         // http options.
@@ -84,32 +90,12 @@ public class App : Application
                 .AddSingleton<MainViewModel>()
                 .AddSingleton<ClientManager>()
                 .AddSingleton<ClientVMFactory>()
-                .AddSingleton<ServerManager>().AddResolver<ServerManager, IStateSaveable>()
+                .AddSingleton<ServerManager>().AddResolver<ServerManager, IStateProvider>()
                 .AddSingleton<MessageManager>()
-                .AddSingleton<StartServerCommand>().AddResolver<StartServerCommand, IStateSaveable>()
+                .AddSingleton<StartServerCommand>().AddResolver<StartServerCommand, IStateProvider>()
                 .AddSingleton<ClearLogCommand>()
-                .AddSingleton<TestServerCommand>().AddResolver<TestServerCommand, IStateSaveable>()
+                .AddSingleton<TestServerCommand>().AddResolver<TestServerCommand, IStateProvider>()
                 .EndChain();
         return services;
     }
-}
-
-public static class ServiceCollectionHelper
-{
-    public static IServiceCollection RegisterOption<T>(this IServiceCollection services) where T : class
-        => services.AddOptions<T>().BindConfiguration(typeof(T).Name)
-                   .ValidateDataAnnotations().ValidateOnStart()
-                   .Services
-                   .AddSingleton(provider => provider.GetRequiredService<IOptions<T>>().Value);
-
-    public static IServiceCollection AddResolver<TType, TInterface>(this IServiceCollection services)
-        where TType : class, TInterface
-        where TInterface : class
-        => services.AddSingleton<TInterface>(provider => provider.GetRequiredService<TType>());
-
-    [SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Used for discard")]
-    public static void EndChain(this IServiceCollection services) { }
-
-    [SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Used for discard")]
-    public static void EndChain(this IHttpClientBuilder builder) { }
 }

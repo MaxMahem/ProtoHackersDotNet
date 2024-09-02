@@ -7,5 +7,11 @@ public class StartServerCommandState : IState
     [JsonIgnore]
     public string ObjectName => nameof(StartServerCommandState);
 
-    public SerializableEndPoint? LocalEndPoint { get; init; }
+    public SerializableEndPoint? LocalEndPoint { get; set; }
+
+    public StartServerCommandState Update(SerializableEndPoint? localEndPoint)
+    {
+        LocalEndPoint = localEndPoint;
+        return this;
+    }
 }

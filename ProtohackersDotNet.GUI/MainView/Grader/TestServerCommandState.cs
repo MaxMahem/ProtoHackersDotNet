@@ -6,5 +6,12 @@ public class TestServerCommandState : IState
 {
     [JsonIgnore]
     public string ObjectName => nameof(TestServerCommandState);
-    public SerializableEndPoint? RemoteEndPoint { get; init; }
+
+    public TestServerCommandState Update(SerializableEndPoint endPoint)
+    {
+        RemoteEndPoint = endPoint;
+        return this;
+    }
+
+    public SerializableEndPoint? RemoteEndPoint { get; set; }
 }

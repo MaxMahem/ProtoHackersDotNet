@@ -1,7 +1,3 @@
 ﻿namespace ProtoHackersDotNet.GUI.Serialization;
 
-public class SerializableEndPoint
-{
-    public string? IP { get; init; } = default;
-    public ushort? Port { get; init; } = default;
-}
+public record class SerializableEndPoint(string? IP = default, ushort? Port = default);

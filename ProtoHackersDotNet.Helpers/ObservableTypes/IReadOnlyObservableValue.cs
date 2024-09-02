@@ -5,9 +5,9 @@ namespace ProtoHackersDotNet.Helpers.ObservableTypes;
 /// <typeparam name="T">The type of the value.</typeparam>
 public interface IReadOnlyObservableValue<T> : IDisposable
 {
-    /// <summary>Gets an observable sequence that produces values whenever the <see cref="Value"/> property changes.</summary>
+    /// <summary>Reports when the <see cref="Value"/> property changes.</summary>
     IObservable<T> Changes { get; }
 
-    /// <summary>Gets the latest value.</summary>
+    /// <summary>Gets the latest <typeparamref name="T"/> value.</summary>
     T Value { get; }
 }

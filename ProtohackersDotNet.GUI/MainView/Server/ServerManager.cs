@@ -5,7 +5,7 @@ using System.Reactive.Disposables;
 
 namespace ProtoHackersDotNet.GUI.MainView.Server;
 
-public sealed class ServerManager : IStateSaveable, IDisposable
+public sealed class ServerManager : IStateProvider, IDisposable
 {
     /// <summary>Gets the currently selected problem.</summary>
     public IObservableValue<IProblem> Problem { get; }
@@ -27,9 +27,13 @@ public sealed class ServerManager : IStateSaveable, IDisposable
 
     readonly CompositeDisposable subscriptions;
 
-    public ServerManager(IEnumerable<IProblem> problems, IEnumerable<IServer> servers, ServerManagerState options)
+    readonly ServerManagerState state;
+
+    public ServerManager(IEnumerable<IProblem> problems, IEnumerable<IServer> servers, ServerManagerState state)
     {
-        var initialProblem = problems.FirstOrDefault(problem => problem.Name == options.Problem, problems.First());
+        this.state = state;
+
+        var initialProblem = problems.FirstOrDefault(problem => problem.Name == state.Problem, problems.First());
         Problem = new ObservableValue<IProblem?>(initialProblem).GuardNotNull().GuardInSet(problems);
         Problems = new ObservableCollection<IProblem>(problems).AsReadOnlyObservableCollection();
 
@@ -38,7 +42,7 @@ public sealed class ServerManager : IStateSaveable, IDisposable
         var filteredServersChanges = this.serverCache.Connect().Filter(Problem.Changes.Select(MakeFilter));
         var serverUpdatesSubscription = filteredServersChanges.ObserveOn(RxApp.MainThreadScheduler).Bind(out this.servers).Subscribe();
 
-        var initialServer = Servers.FirstOrDefault(server => server?.Server.Name.Value == options.Server, Servers.FirstOrDefault());
+        var initialServer = Servers.FirstOrDefault(server => server?.Server.Name.Value == state.Server, Servers.FirstOrDefault());
         ServerVM = new ObservableValue<ServerVM?>(initialServer).Guard(GuardServerRunning)
                                                                 .GuardInSet(Servers.Append(null));
 
@@ -62,11 +66,7 @@ public sealed class ServerManager : IStateSaveable, IDisposable
         if  (ServerVM.Value?.Server is not null) (await ServerVM.Value.Server.Stop()).DiscardUnsubscribe();
     }
 
-    /// <summary>Called when the app exits. Save the current state out to json.</summary>
-    public IState GetState() => new ServerManagerState() { 
-        Server = ServerVM.Value?.Server.Name.Value,
-        Problem = Problem.Value.Name,
-    };
+    public IObservable<IState> StateChanges => Observable.CombineLatest(ServerVM.Changes, Problem.Changes, this.state.Update);
 
     public void Dispose() => this.subscriptions.Dispose();
 
