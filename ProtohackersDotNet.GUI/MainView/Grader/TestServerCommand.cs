@@ -1,51 +1,34 @@
-﻿using ProtoHackersDotNet.GUI.MainView.EndPoint;
-using ProtoHackersDotNet.GUI.MainView.Messages;
+﻿using ProtoHackersDotNet.GUI.Helpers;
+using ProtoHackersDotNet.GUI.MainView.EndPoint;
+using ProtoHackersDotNet.GUI.MainView.Grader.Events;
 using ProtoHackersDotNet.GUI.MainView.Server;
-using ProtoHackersDotNet.GUI.Serialization;
+using System.Reactive.Subjects;
 
 namespace ProtoHackersDotNet.GUI.MainView.Grader;
 
-public class TestServerCommand : IStateProvider, IObservableCommand
+public class TestServerCommand(IObservableValue<ServerVM?> serverVM, EndPointVM remoteEndPoint, GradingService gradingService) 
+    : IObservableCommand<TestServerResult>
 {
-    readonly ServerManager serverManager;
-    readonly MessageManager messageManager;
-    readonly TestServerCommandState state;
+    readonly Subject<TestServerResult> gradingEventResults = new();
 
-    public TestServerCommand(GradingService grader, MessageManager messageManager, ServerManager serverManager,
-            TestServerCommandState state)
-    {
-        this.serverManager = serverManager;
-        this.messageManager = messageManager;
-        this.state = state;
-
-        Grader = grader;
-        RemoteEndPoint = new(
-            ip: IPAddress.TryParse(state.RemoteEndPoint?.IP, out var ip) ? ip : null,
-            port: state.RemoteEndPoint?.Port
-        );
-
-        CanExecute = Observable.CombineLatest(
-            this.serverManager.ServerVM.Changes.SelectMany(server => server?.Server.Listening ?? Observable.Return(false)),
-            RemoteEndPoint.EndPoint.Validity,
-            Grader.Grading,
+    public IObservable<bool> CanExecute { get; } = Observable.CombineLatest(
+            serverVM.Changes.SelectMany(server => server?.Server.Listening ?? Observable.Return(false)),
+            remoteEndPoint.EndPoint.Validity,
+            gradingService.Grading,
             (listening, valid, grading) => listening && valid && !grading
         ).DistinctUntilChanged();
-    }
 
-    public GradingService Grader { get; }
-    public TextEndPoint RemoteEndPoint { get; }
-
-    public IObservable<bool> CanExecute { get; }
+    public IObservable<TestServerResult> Results => gradingEventResults.AsObservable();
 
     public void Execute()
     {
-        var selectedServerVM = this.serverManager.ServerVM.Value ?? ThrowArgumentNullException<ServerVM>();
-        var remoteEndPoint = RemoteEndPoint.EndPoint.Value ?? ThrowArgumentNullException<IPEndPoint>();
+        var selectedServerVM = serverVM.Value ?? ThrowArgumentNullException<ServerVM>();
+        var endPoint = remoteEndPoint.EndPoint.Value ?? ThrowArgumentNullException<IPEndPoint>();
 
-        var testEvents = Grader.GradeServer(selectedServerVM.Server, remoteEndPoint);
-        this.messageManager.SubscribeToStream(EventSource.FromGrader(Grader, testEvents));
-        selectedServerVM.ObserveTest(testEvents);
+        var testEvents = gradingService.GradeServer(selectedServerVM.Server, endPoint);
+        TestServerResult result = new TestServerResult(selectedServerVM, testEvents);
+        this.gradingEventResults.OnNext(result);
     }
-
-    public IObservable<IState> StateChanges => RemoteEndPoint.StateChanges.Select(this.state.Update);
 }
+
+public readonly record struct TestServerResult(ServerVM ServerVM, IObservable<GradingEvent> GradingEvents);

@@ -23,7 +23,7 @@ public class GraderClient(HttpClient client, GraderClientOptions options)
 
     /// <summary>Polls the ProtoHacker test server for a response to our test request. Waiting between each request 
     /// to not flood the server.</summary>
-    /// <returns>An observable that tracks responses from the server.</returns>
+    /// <returns>An observable that reports responses from the server.</returns>
     public IObservable<GraderResponse> PollTestStatus()
     {
         LastAccessedUrl = testStatusUrl;
@@ -32,10 +32,12 @@ public class GraderClient(HttpClient client, GraderClientOptions options)
                          .Repeat().Delay(PollInterval).TakeWhileInclusive(response => response?.CheckStatus is GraderStatus.Checking);
     }
 
-    /// <summary>Requests testing of a given service from the ProtoHacker API.</summary>
-    /// <param name="apiTestRequest"></param>
-    /// <param name="token"></param>
-    /// <returns></returns>
+    /// <summary>Requests testing of <paramref name="server"/> from the ProtoHacker API.</summary>
+    /// <param name="server">The server to be tested.</param>
+    /// <param name="endPoint">The local external IP address and port to be tested.</param>
+    /// <param name="token">A cancellation token for canceling the operation.</param>
+    /// <returns>A task representing completion of the operation, with the response to the test request.</returns>
+    /// <exception cref="HttpRequestException">Thrown if the request fails or the API returns an unsuccessful status code.</exception>
     public async Task<GradingRequestResponse> RequestTesting(IServer server, IPEndPoint endPoint, CancellationToken token)
     {
         LastAccessedUrl = submitTestUrl;
@@ -53,6 +55,11 @@ public class GraderClient(HttpClient client, GraderClientOptions options)
         return requestApiResponse?.Status is ResponseStatus.Ok ? requestApiResponse : ThrowResponseError<GradingRequestResponse>();
     }
 
+    /// <summary>Configures the provided <see cref="HttpClient"/> with default headers and base address settings.</summary>
+    /// <param name="provider">The <see cref="IServiceProvider"/> instance used to resolve service dependencies.</param>
+    /// <param name="client">The <see cref="HttpClient"/> to configure with a default User-Agent header and base address.</param>
+    /// <remarks>The method adds a User-Agent header from the application's user agent and sets the client's
+    /// base address using the <see cref="GraderClientOptions"/> service.</remarks>
     public static void Configure(IServiceProvider provider, HttpClient client)
     {
         client.DefaultRequestHeaders.UserAgent.Add(App.UserAgent);

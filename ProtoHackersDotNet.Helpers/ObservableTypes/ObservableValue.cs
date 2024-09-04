@@ -20,14 +20,16 @@ public sealed class ObservableValue<T>(T initialValue) : IDisposable, IObservabl
     public IObservable<T> Changes => this.valueObserver.AsObservable();
 
     /// <summary>Reports completion of the <see cref="ObservableValue{T}.Changes"/> stream.</summary>
-    /// <remarks>After callnig this <see cref="ObservableValue{T}.Value"/> can no longer be set.</remarks>
+    /// <remarks>After calling this <see cref="ObservableValue{T}.Value"/> can no longer be set.</remarks>
     public void Complete() => this.valueObserver.OnCompleted();
 
     /// <summary>Reports an exception to the <see cref="ObservableValue{T}.Changes"/> stream.</summary>
-    /// <remarks>This may cause a throw, and after doing this <see cref="ObservableValue{T}.Value"/> can no longer be set.</remarks>
+    /// <remarks>This may cause a throw, and after doing this <see cref="ObservableValue{T}.Value"/> can no longer be 
+    /// set.</remarks>
     public void Error(Exception exception) => this.valueObserver.OnError(exception);
 
-    /// <summary>Disposes of this value, unsubscribing all observers. 
-    /// After calling this method this value can no longer be read!</summary>
+    /// <summary>Disposes of this value, unsubscribing all observers.</summary>
+    /// <remarks></remarks>After calling this method this <see cref="ObservableValue{T}.Value"/> can no longer be 
+    /// read!</remarks>
     public void Dispose() => this.valueObserver.Dispose();
 }

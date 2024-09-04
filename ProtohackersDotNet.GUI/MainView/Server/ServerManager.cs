@@ -38,7 +38,7 @@ public sealed class ServerManager : IStateProvider, IDisposable
         Problems = new ObservableCollection<IProblem>(problems).AsReadOnlyObservableCollection();
 
         // build the filterable Server collection
-        this.serverCache.AddOrUpdate(servers.Select(GUI.MainView.Server.ServerVM.Create));
+        this.serverCache.AddOrUpdate(servers.Select(Server.ServerVM.Create));
         var filteredServersChanges = this.serverCache.Connect().Filter(Problem.Changes.Select(MakeFilter));
         var serverUpdatesSubscription = filteredServersChanges.ObserveOn(RxApp.MainThreadScheduler).Bind(out this.servers).Subscribe();
 
@@ -51,7 +51,7 @@ public sealed class ServerManager : IStateProvider, IDisposable
 
         this.subscriptions = [serverUpdatesSubscription, selectedServerUpdateSubscription];
 
-        // trigger all our server descriptions to load lazily.
+        // trigger the server descriptions to load lazily.
         _ = Task.WhenAll(servers.Select(server => Task.Run(() => _ = server.Solution.Description)));
     }
 

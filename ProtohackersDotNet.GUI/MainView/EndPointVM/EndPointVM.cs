@@ -11,16 +11,20 @@ public abstract class EndPointVM
     public ValidateableValue<ushort?> Port { get; }
     public CompositValidatableValue<IPAddress?, ushort?, IPEndPoint?> EndPoint { get; protected set; }
 
-    public EndPointVM(IPAddress? ip, ushort? port)
+    public EndPointVM(SerializableEndPoint serializableEndPoint)
     {
+        _ = IPAddress.TryParse(serializableEndPoint.IP, out IPAddress? ip);
+
         IP = ValidateableValue<IPAddress?>.NotNull(ip);
-        Port = ValidateableValue<ushort?>.NotNull(port);
+        Port = ValidateableValue<ushort?>.NotNull(serializableEndPoint.Port);
+
         EndPoint = new(IP, Port, TryBuildEndPoint);
 
         static IPEndPoint? TryBuildEndPoint(IPAddress? ip, ushort? port)
             => ip is not null && port is not null ? new IPEndPoint(ip, port.Value) : null;
     }
 
+    /// <summary>Reports whenever the endpoint state changes.</summary>
     public IObservable<SerializableEndPoint> StateChanges => Observable.CombineLatest(IP.Changes, Port.Changes,
         (ip, port) => new SerializableEndPoint() { IP = ip?.ToString(), Port = port })
         .DistinctUntilChanged();

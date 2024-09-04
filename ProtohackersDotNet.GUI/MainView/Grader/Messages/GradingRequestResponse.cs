@@ -1,6 +1,6 @@
 ﻿namespace ProtoHackersDotNet.GUI.MainView.Grader.Messages;
 
-public class GradingRequestResponse : IApiResponse
+public class GradingRequestResponse : IGraderApiResponse
 {
     public ResponseStatus Status { get; init; }
 

@@ -17,6 +17,7 @@ using ProtoHackersDotNet.GUI.Serialization;
 using ProtoHackersDotNet.Servers.UdpDatabase;
 using ProtoHackersDotNet.Servers.MobProxy;
 using ProtoHackersDotNet.Servers;
+using ProtoHackersDotNet.GUI.MainView.IpIfyClient;
 
 namespace ProtoHackersDotNet.GUI;
 
@@ -60,10 +61,10 @@ public class App : Application
 
         services.RegisterOption<GraderClientOptions>()
                 .RegisterOption<ServerManagerState>()
-                .RegisterOption<StartServerCommandState>()
-                .RegisterOption<TestServerCommandState>()
+                .RegisterOption<MainViewModelState>()
                 .RegisterOption<ClientVMFactoryOptions>()
                 .RegisterOption<MessageManagerOptions>()
+                .RegisterOption<IpIfyClientOptions>()
                 .RegisterOption<BudgetChatServerOptions>()
                 .RegisterOption<UdpDatabaseServerOptions>()
                 .RegisterOption<MobProxyServerOptions>()
@@ -74,6 +75,7 @@ public class App : Application
 
         // http options.
         services.AddHttpClient<GraderClient>(GraderClient.Configure).EndChain();
+        services.AddHttpClient<IpIfyClient>(IpIfyClient.Configure).EndChain();
 
                 // servers
         services.AddSingleton(Problem.Instances.All)
@@ -87,14 +89,11 @@ public class App : Application
                 .AddSingleton<MainWindow>()
                 // VM elements
                 .AddSingleton<GradingService>()
-                .AddSingleton<MainViewModel>()
+                .AddSingleton<MainViewModel>().AddResolver<MainViewModel, IStateProvider>()
                 .AddSingleton<ClientManager>()
                 .AddSingleton<ClientVMFactory>()
                 .AddSingleton<ServerManager>().AddResolver<ServerManager, IStateProvider>()
                 .AddSingleton<MessageManager>()
-                .AddSingleton<StartServerCommand>().AddResolver<StartServerCommand, IStateProvider>()
-                .AddSingleton<ClearLogCommand>()
-                .AddSingleton<TestServerCommand>().AddResolver<TestServerCommand, IStateProvider>()
                 .EndChain();
         return services;
     }

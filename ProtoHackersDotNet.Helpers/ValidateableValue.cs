@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-using System.Reactive.Disposables;
-using System.Reactive.Linq;
+﻿using System.Reactive.Linq;
 using System.Reactive.Subjects;
 
 namespace ProtoHackersDotNet.Helpers.ObservableTypes;
@@ -41,38 +39,4 @@ public sealed class ValidateableValue<T>(Func<T?, bool> validator, T? initialVal
         => new(value => value is null || values.Contains(value), initialValue);
 
     public void Dispose() => this.valueObserver.Dispose();
-}
-
-public static class ObservableValueHelper
-{
-    public static IObservableValue<T> Guard<T>(this IObservableValue<T> source, Func<T, Exception?> guard)
-        => new GuardedValue<T>(source, guard);
-
-    public static IObservableValue<T> GuardNotNull<T>(this IObservableValue<T?> source)
-        => new GuardedValue<T>(source!, value => value is null ? new ArgumentNullException(nameof(value)) : null);
-
-    public static IObservableValue<T> GuardInSet<T>(this IObservableValue<T> source, IEnumerable<T> values)
-        => new GuardedValue<T>(source, value => !values.Contains(value) ? new ArgumentOutOfRangeException(nameof(value)) : null);
-}
-
-public sealed class GuardedValue<T>(IObservableValue<T> observableValue, Func<T, Exception?> guard) : IObservableValue<T>
-{
-    public T Value {
-        get => observableValue.Value;
-        set {
-            if (guard(value) is Exception exception) {
-                observableValue.Error(exception);
-                return;
-            }
-            else {
-                observableValue.Value = value;
-            }
-        }
-    }
-
-    public IObservable<T> Changes => observableValue.Changes;
-
-    public void Complete() => observableValue.Complete();
-    public void Error(Exception exception) => observableValue.Error(exception);
-    public void Dispose() => observableValue.Dispose();
 }

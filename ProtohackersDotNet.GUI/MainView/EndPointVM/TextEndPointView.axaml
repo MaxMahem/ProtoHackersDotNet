@@ -10,11 +10,15 @@
 		<Label Target="{Binding #REMOTE_IP}"
 					 Grid.Column="0" Grid.Row="0"
 					 VerticalAlignment="Center" Classes="h2" Content="IP"/>
-		<TextBox Name="REMOTE_IP"
-						 Grid.Column="1" Grid.Row="0"
-						 HorizontalAlignment="Stretch" Classes="mono"
-						 Classes.invalid="{Binding !#TEXT_ENDPOINT.EndPoint.IP.Validity^}"
-						 Text="{Binding #TEXT_ENDPOINT.EndPoint.IPText}"/>
+		<DockPanel Grid.Column="1" Grid.Row="0">
+			<Button DockPanel.Dock="Right" 
+							Command="{Binding #TEXT_ENDPOINT.GetIpCommand.Execute}" 
+							IsEnabled="{Binding #TEXT_ENDPOINT.GetIpCommand.CanExecute^}">?</Button>
+			<TextBox Name="REMOTE_IP"
+							 HorizontalAlignment="Stretch" Classes="mono"
+							 Classes.invalid="{Binding !#TEXT_ENDPOINT.EndPoint.IP.Validity^}"
+							 Text="{Binding #TEXT_ENDPOINT.EndPoint.IPText}"/>
+		</DockPanel>
 		<Label Target="{Binding #REMOTE_PORT}"
 					 Grid.Column="0" Grid.Row="1"
 					 VerticalAlignment="Center" Classes="h2">Port</Label>

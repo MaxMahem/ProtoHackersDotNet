@@ -56,10 +56,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Helpers\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Compile Update="MainView\EndPointVM\SelectableEndPointView.axaml.cs">
       <DependentUpon>SelectableEndPointView.axaml</DependentUpon>
     </Compile>
