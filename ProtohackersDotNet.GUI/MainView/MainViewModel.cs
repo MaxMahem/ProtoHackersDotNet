@@ -21,18 +21,18 @@ public sealed class MainViewModel : IStateProvider
         GradingService = gradingService;
 
         LocalEndPoint = new(SystemIPs, mainViewModelState.LocalEndPoint);
-        RemoteEndPoint = new(mainViewModelState.RemoteEndPoint);
+        ExternalEndPoint = new(mainViewModelState.ExternalEndPoint);
 
-        StateChanges = Observable.CombineLatest(LocalEndPoint.StateChanges, RemoteEndPoint.StateChanges, mainViewModelState.Update);
+        StateChanges = Observable.CombineLatest(LocalEndPoint.StateChanges, ExternalEndPoint.StateChanges, mainViewModelState.Update);
 
         StartServerCommand = new(serverManager.ServerVM, LocalEndPoint);
         StartServerCommand.Results.Subscribe(OnStartServer).DiscardUnsubscribe();
         
-        TestServerCommand  = new(serverManager.ServerVM, RemoteEndPoint, gradingService);
+        TestServerCommand  = new(serverManager.ServerVM, ExternalEndPoint, gradingService);
         TestServerCommand.Results.Subscribe(OnTestServer).DiscardUnsubscribe();
 
         GetIpCommand = new ObservableAsyncCommand<IPAddress>(ipIfyClient.GetExternalIP, Observable.Return(true), true);
-        GetIpCommand.Results.Subscribe(ip => RemoteEndPoint.IP.Value = ip).DiscardUnsubscribe(); 
+        GetIpCommand.Results.Subscribe(ip => ExternalEndPoint.IP.Value = ip).DiscardUnsubscribe(); 
 
         // When the server changes, clear the logs.
         serverManager.ServerVM.Changes.Select(_ => Unit.Default).Subscribe(ClearClientsAndMessages).DiscardUnsubscribe();
@@ -65,7 +65,7 @@ public sealed class MainViewModel : IStateProvider
 
     
     public SelectableEndPoint LocalEndPoint { get; }
-    public TextEndPoint RemoteEndPoint { get; }
+    public TextEndPoint ExternalEndPoint { get; }
 
     public StartServerCommand StartServerCommand { get; }
     public TestServerCommand TestServerCommand { get; }
@@ -79,7 +79,6 @@ public sealed class MainViewModel : IStateProvider
                            .Select(address => address.Address)
                            .Prepend(IPAddress.Any);
 
-
     void ClearClientsAndMessages(Unit _)
     {
         ClientManager.ClearDisconnectedClients();
@@ -92,12 +91,12 @@ public class MainViewModelState : IState
     [JsonIgnore] public string ObjectName => nameof(MainViewModelState);
 
     public SerializableEndPoint LocalEndPoint { get; set; } = new();
-    public SerializableEndPoint RemoteEndPoint { get; set; } = new();
+    public SerializableEndPoint ExternalEndPoint { get; set; } = new();
 
-    public MainViewModelState Update(SerializableEndPoint localEndPoint, SerializableEndPoint remoteEndPoint)
+    public MainViewModelState Update(SerializableEndPoint localEndPoint, SerializableEndPoint externalEndPoint)
     {
         LocalEndPoint = localEndPoint;
-        RemoteEndPoint = remoteEndPoint;
+        ExternalEndPoint = externalEndPoint;
         return this;
     }
 }

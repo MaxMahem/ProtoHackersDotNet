@@ -24,13 +24,13 @@
 	<Grid ColumnDefinitions="*, 1, 4*, 0" RowDefinitions="auto, *, auto" Name="MainGrid">
 		<DockPanel Grid.Column="0" Grid.Row="0" Grid.RowSpan="2">
 			<StackPanel Name="ENDPOINT_TABS" DockPanel.Dock="Bottom">
-				<TabControl Name="LOCAL_REMOTE">
+				<TabControl Name="LOCAL_EXTERNAL">
 					<TabItem Header="Local">
 						<endpoint:SelectableEndPointView EndPoint="{Binding LocalEndPoint}"
 																						 IsEnabled="{Binding !ServerManager.ServerVM.Changes^.Server.Listening^}"/>
 					</TabItem>
-					<TabItem Header="Remote">
-						<endpoint:TextEndPointView EndPoint="{Binding RemoteEndPoint}"
+					<TabItem Header="External">
+						<endpoint:TextEndPointView EndPoint="{Binding ExternalEndPoint}"
 																			 GetIpCommand="{Binding GetIpCommand}"
 																			 IsEnabled="{Binding !GradingService.Grading^}"/>
 					</TabItem>

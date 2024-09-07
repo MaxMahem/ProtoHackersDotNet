@@ -83,10 +83,10 @@
 	<Style Selector="TabControl">
 		<Setter Property="Padding" Value="0" />
 	</Style>
-	<Style Selector="TabControl#LOCAL_REMOTE /template/ WrapPanel">
+	<Style Selector="TabControl#LOCAL_EXTERNAL /template/ WrapPanel">
 		<Setter Property="HorizontalAlignment" Value="Right"/>
 	</Style>
-	<Style Selector="TabControl#LOCAL_REMOTE /template/ ContentPresenter#PART_SelectedContentHost">
+	<Style Selector="TabControl#LOCAL_EXTERNAL /template/ ContentPresenter#PART_SelectedContentHost">
 		<Setter Property="Margin" Value="0"/>
 	</Style>
 	<Style Selector="TabItem">

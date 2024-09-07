@@ -35,7 +35,7 @@ public partial class TextEndPointView : UserControl
 
         IDisposable? unsubscribe = default;
         Loaded += (s, e) => unsubscribe = this.endPoint?.IP.Changes.Where(ip => ip is not null)
-                                              .Subscribe(ip => REMOTE_IP.Text = ip?.ToString())
+                                              .Subscribe(ip => this.EXTERNAL_IP.Text = ip?.ToString())
                                             ?? ThrowArgumentNullException<IDisposable>(nameof(EndPoint));
         Unloaded += (s, e) => unsubscribe?.Dispose();
     }

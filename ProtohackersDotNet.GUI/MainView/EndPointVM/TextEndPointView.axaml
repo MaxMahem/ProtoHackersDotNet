@@ -8,22 +8,25 @@
 						 x:Class="ProtoHackersDotNet.GUI.MainView.EndPoint.TextEndPointView"
 						 x:DataType="endpoint:TextEndPoint">
 	<Grid ColumnDefinitions="1*, 2*" RowDefinitions="auto, auto">
-		<Label Target="{Binding #REMOTE_IP}"
+		<Label Target="{Binding #EXTERNAL_IP}"
 					 Grid.Column="0" Grid.Row="0"
 					 VerticalAlignment="Center" Classes="h2" Content="IP"/>
 		<DockPanel Grid.Column="1" Grid.Row="0">
-			<Button DockPanel.Dock="Right" 
+			<Button DockPanel.Dock="Right" VerticalAlignment="Stretch"
+							ToolTip.Tip="Lookup External IP"
 							Command="{Binding #TEXT_ENDPOINT.GetIpCommand.Execute}" 
-							IsEnabled="{Binding #TEXT_ENDPOINT.GetIpCommand.CanExecute^}">?</Button>
-			<TextBox Name="REMOTE_IP"
+							IsEnabled="{Binding #TEXT_ENDPOINT.GetIpCommand.CanExecute^}">
+				<icons:MaterialIcon Kind="FindReplace" />
+			</Button>
+			<TextBox Name="EXTERNAL_IP"
 							 HorizontalAlignment="Stretch" Classes="mono"
 							 Classes.invalid="{Binding !#TEXT_ENDPOINT.EndPoint.IP.Validity^}"
 							 Text="{Binding #TEXT_ENDPOINT.EndPoint.IPText}"/>
 		</DockPanel>
-		<Label Target="{Binding #REMOTE_PORT}"
+		<Label Target="{Binding #EXTERNAL_PORT}"
 					 Grid.Column="0" Grid.Row="1"
 					 VerticalAlignment="Center" Classes="h2">Port</Label>
-		<NumericUpDown Grid.Column="1" Grid.Row="1" Name="REMOTE_PORT"
+		<NumericUpDown Grid.Column="1" Grid.Row="1" Name="EXTERNAL_PORT"
 									 Minimum="0" Maximum="65535" FormatString="0"
 									 ShowButtonSpinner="False" Classes="mono"
 									 Classes.invalid="{Binding !#TEXT_ENDPOINT.EndPoint.Port.Validity^}"
