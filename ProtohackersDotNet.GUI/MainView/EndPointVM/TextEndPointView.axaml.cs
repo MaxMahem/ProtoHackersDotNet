@@ -11,12 +11,11 @@ public partial class TextEndPointView : UserControl
             getter: endPointView => endPointView.GetIpCommand,
             setter: (endPointView, ipLookupCommand) => endPointView.GetIpCommand = ipLookupCommand);
 
-    IObservableCommand<IPAddress>? getIpCommand;
-
     public IObservableCommand<IPAddress>? GetIpCommand {
         get => this.getIpCommand;
         set => SetAndRaise(GetIpCommandProperty, ref this.getIpCommand, value);
     }
+    IObservableCommand<IPAddress>? getIpCommand;
 
     public static readonly DirectProperty<TextEndPointView, TextEndPoint?> EndPointProperty =
         AvaloniaProperty.RegisterDirect<TextEndPointView, TextEndPoint?>(
@@ -24,22 +23,20 @@ public partial class TextEndPointView : UserControl
             getter: endPointView => endPointView.EndPoint,
             setter: (endPointView, endPoint) => endPointView.EndPoint = endPoint);
 
-    TextEndPoint? endPoint;
-
     public TextEndPoint? EndPoint {
         get => this.endPoint;
         set => SetAndRaise(EndPointProperty, ref this.endPoint, value);
     }
+    TextEndPoint? endPoint;
 
     public TextEndPointView()
     {
         InitializeComponent();
-        Loaded += TextEndPointView_Loaded;
-    }
 
-    void TextEndPointView_Loaded(object? s, RoutedEventArgs e)
-    {
-        if (EndPoint is null) { ThrowInvalidOperationException(); }
-        EndPoint.IP.Changes.Where(ip => ip is not null).Subscribe(ip => REMOTE_IP.Text = ip?.ToString()).DiscardUnsubscribe();
+        IDisposable? unsubscribe = default;
+        Loaded += (s, e) => unsubscribe = this.endPoint?.IP.Changes.Where(ip => ip is not null)
+                                              .Subscribe(ip => REMOTE_IP.Text = ip?.ToString())
+                                            ?? ThrowArgumentNullException<IDisposable>(nameof(EndPoint));
+        Unloaded += (s, e) => unsubscribe?.Dispose();
     }
 }

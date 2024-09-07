@@ -24,7 +24,7 @@ public class TextEndPoint : EndPointVM
             IP.Value = value switch
             {
                 string value4 when TryParseIPv4(value4, out var ipv4) => ipv4,
-                string value6 when value.Contains(':') && IPAddress.TryParse(value6, out var ipv6) => ipv6,
+                string value6 when value.Count(':') >= 2 && IPAddress.TryParse(value6, out var ipv6) => ipv6,
                 _ => null,
             };
         }

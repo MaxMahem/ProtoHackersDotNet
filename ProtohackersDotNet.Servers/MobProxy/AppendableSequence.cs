@@ -15,7 +15,7 @@ public sealed class AppendableSequence<T>
     public AppendableSequence<T> Append(ReadOnlySequence<T> sequence)
     {
         SequencePosition position = sequence.Start;
-        while (sequence.TryGet(ref position, out ReadOnlyMemory<T> memory, true)) Append(memory);
+        while (sequence.TryGet(ref position, out ReadOnlyMemory<T> memory, true)) { _ = Append(memory); }
         return this;
     }
 
@@ -24,15 +24,15 @@ public sealed class AppendableSequence<T>
     /// <returns>This sequence for chaining.</returns>
     public AppendableSequence<T> Append(ReadOnlyMemory<T> memory)
     {
-        if (current is null) first = current = new ReadOnlyMemorySegment<T>(memory);
-        else current = current.Append(memory);
+        if (this.current is null) { this.first = this.current = new ReadOnlyMemorySegment<T>(memory); }
+        else { this.current = this.current.Append(memory); }
         return this;
     }
 
     /// <summary>Returns this as a <see cref="ReadOnlySequence{T}"/>.</summary>
     /// <returns>The current data, encoded as a <see cref="ReadOnlySequence{T}"/>.</returns>
-    public ReadOnlySequence<T> AsSequence() => first is not null && current is not null
-            ? new ReadOnlySequence<T>(first, 0, current, current.Memory.Length)
+    public ReadOnlySequence<T> AsSequence() => this.first is not null && this.current is not null
+            ? new ReadOnlySequence<T>(this.first, 0, this.current, this.current.Memory.Length)
             : ReadOnlySequence<T>.Empty;
 
     /// <summary>Converts this object into a <see cref="ReadOnlySequence{T}"/>.</summary>
